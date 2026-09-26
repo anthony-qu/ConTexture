@@ -1,0 +1,10 @@
+.env
+.venv/
+# .venv is the ONE environment the omics-agent runs in, on every benchmark. Do not add a
+# second one — see CLAUDE.md 'One environment for the omics-agent'. Packages belong in
+# pyproject.toml (uv lock && uv sync); ENV_MANIFEST.txt records the resulting set.
+__pycache__/
+*.py[cod]
+*.egg-info/
+output/
+figures/

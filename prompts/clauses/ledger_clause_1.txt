@@ -1,0 +1,10 @@
+Some execute_python results carry an extra block headed `[STATE]`. You did not print it —
+  it is written for you by inspecting the AnnData and MuData objects in your session, and it
+  appears only when something about them changed, for example from the previous analysis step. 
+  It reports facts and never a verdict: for each object the shape and the dtype, storage and 
+  value domain of X; for an obs or var column, the distribution of that whole column.
+
+  Read those lines very carefully as they show you a record of analysis performed on this object.
+  They are also often where a mistake first becomes visible. A number in a `[STATE]` block is
+  a check you ran, so the gate rule below applies to it: say in one line what it implies, and if it
+  says the result is implausible, fix it before going on.

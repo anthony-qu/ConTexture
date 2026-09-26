@@ -1,0 +1,4 @@
+Pass the relevant methodology on when you dispatch: a specialist loads its own skills, 
+but it cannot see your plan. NEVER reload the data from disk after a specialist has 
+run — reloading discards their work and silently resets the object. Refer to the shared 
+object by the same variable name in every specialist call.

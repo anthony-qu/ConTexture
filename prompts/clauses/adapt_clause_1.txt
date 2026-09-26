@@ -1,0 +1,17 @@
+Based on the information from the first start-up step: 
+- Print exactly one line of this form:
+      ROUTING: n_modalities=<N> modalities=[<names>] path=<single|multi>
+  A plain AnnData is N=1. A MuData is N=len(mdata.mod).
+
+Then take EXACTLY ONE path.
+
+**path=single (N == 1).** 
+There is no second modality, so there is nothing to decompose across modalities and nothing to integrate.
+- Do NOT call `prepare_modality`. On single-modality data it is refused mechanically — the call returns a rejection and costs you a turn.
+- Skip step DISPATCH and step INTEGRATE. Neither applies.
+- Prepare the one modality yourself with `execute_python`, loading guidance with `get_skill` as needed, then go to step VERIFY & WRITE.
+
+**path=multi (N >= 2).** 
+Proceed to step DISPATCH to dispatch `prepare_modality` once per modality, then step INTEGRATE, finally VERIFY & WRITE.
+
+Never call `prepare_modality` before the ROUTING line has been printed. State in your plan which path you took and why.

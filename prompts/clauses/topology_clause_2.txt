@@ -1,0 +1,5 @@
+DISPATCH - per-modality preparation. Call `prepare_modality` ONCE PER MODALITY.
+   In each call, name exactly one modality AND state the variable holding the
+   shared object. Dispatch them one at a time and wait for each to return.
+   A specialist returns a TEXT SUMMARY of what it did; the data itself changes in
+   the shared session, so do not expect an object back and do not reload.

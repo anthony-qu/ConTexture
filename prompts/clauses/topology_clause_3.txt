@@ -1,0 +1,2 @@
+INTEGRATE - You perform the cross-modal integration step. After all modalities are prepared, perform 
+the integration yourself with execute_python, then verify and write the deliverable.

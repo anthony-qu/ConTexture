@@ -1,0 +1,52 @@
+[project]
+name = "omics-agent"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "openai-agents>=0.0.19",
+    "litellm>=1.40.0",
+    "python-dotenv>=1.0.0",
+    "scanpy>=1.10.0",
+    "anndata>=0.10.0",
+    "leidenalg>=0.10.0",
+    "python-igraph>=0.11.0",
+    "matplotlib>=3.8.0",
+    "squidpy>=1.4.0",
+    "muon>=0.1.6",
+    "harmonypy>=0.0.9",
+    "pydeseq2>=0.4.0",
+    "scrublet>=0.2.3",
+    "scFates>=1.0.0",
+    "monocle",
+
+    # --- analysis packages the external benchmarks need -----------------------
+    # These were installed only into a second venv (.venv-omicbench) until 2026-07-26,
+    # which meant the agent was MORE capable on the competitors' benchmarks than on our
+    # own, and a skill calling any of them would have crashed on half the benchmark set.
+    # The two venvs were merged into .venv; these are declared here so `uv sync` /
+    # `uv run` cannot prune them back out. See CLAUDE.md 'One environment for the
+    # omics-agent'. Do NOT create a second venv to add a package — add it here.
+    "gseapy>=1.1.0",           # gene-set enrichment / over-representation
+    "decoupler>=1.5.0",        # pathway + TF activity inference
+    "scanorama>=1.7.0",        # batch integration
+    "mofapy2>=0.7.0",          # multi-omics factor analysis
+    "scvelo>=0.3.0",           # RNA velocity
+    "scikit-bio>=0.6.0",       # ecology / diversity metrics (microbiome tasks)
+    "liana>=1.0.0",            # ligand-receptor / cell-cell communication
+    "lifelines>=0.27.0",       # survival analysis
+    "gprofiler-official>=1.0", # functional enrichment via g:Profiler
+    "geoparse>=2.0.0",         # GEO series/matrix parsing
+    "openpyxl>=3.1.0",         # .xlsx inputs (many benchmark tasks ship spreadsheets)
+    "xlrd>=2.0.0",             # legacy .xls inputs
+    "biom-format>=2.1.0",      # BIOM microbiome tables
+    "pysal>=24.0",             # spatial statistics
+    "pot>=0.9.0",              # optimal transport
+    "karateclub>=1.2.0",       # graph embeddings
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = []
