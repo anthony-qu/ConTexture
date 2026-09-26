@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ConTexture</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="helix" aria-hidden="true"></div>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="#/new">
+        <span class="brand-mark" data-spotmap="2"></span>
+        <span>
+          <span class="wordmark">Con<b>Texture</b></span>
+          <span class="tagline">spatial multi-omics agent</span>
+        </span>
+      </a>
+      <a class="btn btn-primary wide" href="#/new">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
+        New analysis
+      </a>
+      <div class="side-head">Runs</div>
+      <ul id="run-list" class="run-list"></ul>
+      <div class="side-foot">
+        <div class="seq" aria-hidden="true"></div>
+        <div class="muted small">Your data and results stay on this computer. Only the
+          model requests leave it.</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- New analysis -->
+      <section id="view-new" class="view" hidden>
+        <div class="new-wrap">
+          <div class="spot-watermark" data-spotmap="7" aria-hidden="true"></div>
+          <header class="page-head">
+            <p class="eyebrow">New analysis</p>
+            <h1>What should ConTexture find in your data?</h1>
+            <p class="muted">Give it a data file and a goal in plain English. It writes and runs
+              Python until the goal is met, and you can watch every step here.</p>
+          </header>
+          <form id="new-form" class="card form" autocomplete="off">
+            <label class="field">
+              <span class="label">Data file or folder</span>
+              <input id="f-data" name="data_path" type="text" spellcheck="false"
+                     placeholder="/path/to/sample.h5mu" required>
+              <span class="hint">A path on the computer running this page. An <code>.h5ad</code>
+                or <code>.h5mu</code> file works best.</span>
+            </label>
+            <label class="field">
+              <span class="label">Goal</span>
+              <textarea id="f-goal" name="goal" rows="6" required
+                placeholder="Cluster the spots from both modalities, name the spatial domains, and save the result with labels in obs['domain']."></textarea>
+              <span class="hint">Name the outputs you want. The agent aims at what you ask for.</span>
+            </label>
+            <div class="row">
+              <label class="field grow">
+                <span class="label">Model</span>
+                <input id="f-model" name="model" type="text" list="model-list" spellcheck="false">
+                <datalist id="model-list"></datalist>
+              </label>
+              <label class="field turns">
+                <span class="label">Turn budget</span>
+                <input id="f-turns" name="max_turns" type="number" min="1" max="500">
+              </label>
+            </div>
+            <div id="key-note" class="key-note small"></div>
+            <div id="form-error" class="form-error" role="alert" hidden></div>
+            <div class="form-actions">
+              <button id="f-start" class="btn btn-primary" type="submit">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.5v9l7-4.5z"/></svg>
+                Start analysis
+              </button>
+              <span class="muted small" id="runs-dir-note"></span>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- One run -->
+      <section id="view-run" class="view" hidden>
+        <header class="run-head">
+          <div class="run-title-row">
+            <div class="status-chip" id="r-status"><span class="dot"></span><span></span></div>
+            <div class="run-actions">
+              <a class="btn btn-ghost" id="r-log" target="_blank" rel="noopener">Transcript</a>
+              <button class="btn btn-danger" id="r-stop" hidden>
+                <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1.5"/></svg>
+                Stop
+              </button>
+            </div>
+          </div>
+          <h2 class="run-goal" id="r-goal"></h2>
+          <div class="meta" id="r-meta"></div>
+          <div class="progress" id="r-progress" hidden><span></span></div>
+          <div class="note" id="r-note" hidden></div>
+        </header>
+        <nav class="tabs" role="tablist">
+          <button class="tab active" data-tab="transcript" role="tab">Transcript</button>
+          <button class="tab" data-tab="figures" role="tab">Figures <span class="count" id="n-fig">0</span></button>
+          <button class="tab" data-tab="files" role="tab">Files <span class="count" id="n-files">0</span></button>
+        </nav>
+        <div class="panel" id="p-transcript">
+          <div id="timeline" class="timeline"></div>
+          <div id="console" class="console" hidden></div>
+          <div id="waiting" class="waiting" hidden>
+            <span class="bases"><i></i><i></i><i></i><i></i></span> Waiting for the agent's next step
+          </div>
+        </div>
+        <div class="panel" id="p-figures" hidden>
+          <div id="gallery" class="gallery"></div>
+        </div>
+        <div class="panel" id="p-files" hidden>
+          <table class="files"><thead><tr><th>File</th><th>Size</th><th>Changed</th><th></th></tr></thead>
+            <tbody id="file-rows"></tbody></table>
+        </div>
+        <button id="to-latest" class="to-latest" hidden>Jump to latest</button>
+      </section>
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

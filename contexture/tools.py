@@ -6,7 +6,7 @@ from pathlib import Path
 
 from agents import function_tool
 
-import ledger
+from . import ledger
 
 _SKILLS_DIR = Path(__file__).parent / "skills"
 

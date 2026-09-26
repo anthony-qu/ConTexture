@@ -14,7 +14,7 @@ import hashlib
 import re
 from pathlib import Path
 
-import tools   # for MULTI_AGENT_TOPOLOGIES only — tools.py never imports prompts,
+from . import tools   # for MULTI_AGENT_TOPOLOGIES only — tools.py never imports prompts,
                # so this direction cannot cycle. Keeping the set in ONE place is
                # what stops roles()/topology.py/_agent_tag() from disagreeing about
                # which topologies are multi-agent.

@@ -61,12 +61,12 @@ def _run_settings(agent_obj):
     """Per-model request settings shared with the analysis agent (topology.settings_for): usage
     accounting, and Anthropic prompt caching so a growing transcript is not re-billed in full on
     every turn. Imported lazily: topology is light, but this keeps the module's import graph as it was."""
-    from topology import settings_for
+    from .topology import settings_for
     return settings_for(getattr(agent_obj, "model", None))
 
 
-import prompts
-import tools
+from . import prompts
+from . import tools
 
 # ── budget ────────────────────────────────────────────────────────────────────
 # Discovery is a side quest before the real work. It gets a wall-clock ceiling, a
@@ -570,7 +570,7 @@ def bootstrap(data_path: str, goal: str, output_dir: str, label: str | None = No
     if evolve:
         # Imported lazily INSIDE the branch: an evolve-off run never touches skillmaker.py,
         # which is what makes "off is absence" mechanical for this component too.
-        import skillmaker                                      # noqa: E402
+        from . import skillmaker                                      # noqa: E402
         log("[DISCOVERY] running the skill maker (in the analysis venv, before the switch)")
         try:
             report = asyncio.run(skillmaker.run_skill_maker(data_path, goal, output_dir))

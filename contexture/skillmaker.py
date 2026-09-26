@@ -40,13 +40,13 @@ def _run_settings(agent_obj):
     """Per-model request settings shared with the analysis agent (topology.settings_for): usage
     accounting, and Anthropic prompt caching so a growing transcript is not re-billed in full on
     every turn. Imported lazily: topology is light, but this keeps the module's import graph as it was."""
-    from topology import settings_for
+    from .topology import settings_for
     return settings_for(getattr(agent_obj, "model", None))
 
 
-import discovery          # the scout's helpers: HTTP, Europe PMC, logger, env, data report
-import prompts
-import tools
+from . import discovery          # the scout's helpers: HTTP, Europe PMC, logger, env, data report
+from . import prompts
+from . import tools
 
 # ── budgets ───────────────────────────────────────────────────────────────────
 MAKER_MODEL = discovery.SCOUT_MODEL     # one strong-model constant for every discovery agent

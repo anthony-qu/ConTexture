@@ -6,11 +6,11 @@ from dotenv import load_dotenv
 from agents import Agent, Runner, RunConfig, MaxTurnsExceeded, RunHooks
 from agents.extensions.models.litellm_provider import LitellmProvider
 
-import prompts
+from . import prompts
 import json as _json
 
-import tools
-import topology
+from . import tools
+from . import topology
 
 
 class _ToolLogger(RunHooks):
@@ -125,7 +125,6 @@ def _extract_message_text(item) -> str:
 
 load_dotenv()
 
-PROJECT_DIR = Path(__file__).parent
 # OpenAI
 # DEFAULT_MODEL = "gpt-4o"
 # DEFAULT_MODEL = "gpt-4o-mini"
@@ -253,10 +252,12 @@ async def main(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Multiome agent.")
+    parser = argparse.ArgumentParser(prog="contexture run",
+                                     description="Run one ConTexture analysis in the terminal.")
     parser.add_argument("data_path", help="Path to input .h5ad or .h5mu file")
     parser.add_argument("goal", help='Research goal, e.g. "identify cell types"')
-    parser.add_argument("--output-dir", default=str(PROJECT_DIR / "output"))
+    # Results go where the user is working, never inside the installed package.
+    parser.add_argument("--output-dir", default=str(Path.cwd() / "contexture-output"))
     parser.add_argument("--model", default=DEFAULT_MODEL, help="LiteLLM model string")
     parser.add_argument(
         "--topology", default=None, choices=["flat", "orchestrated", "adaptive"],
@@ -271,22 +272,27 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--discovery", action="store_true",
-        help="Discovery mode: describe the data, then find, read and install a "
-             "published method for this goal before the analysis starts. Runs the "
-             "analysis in a throwaway conda environment, so it is NOT version-"
-             "comparable to a normal run. Off by default.",
+        # Hidden: not available in the installed package yet (see the check below).
+        # Discovery mode describes the data, then finds, reads and installs a published
+        # method before the analysis, in a throwaway conda environment.
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--evolve", action="store_true",
-        help="Skill evolution (requires --discovery): before the analysis, a skill maker "
-             "composes a methodology guide for this assay from the existing skills and the "
-             "transforms, tests its code on the data, and adds it to this run's skill "
-             "menu. See code/analysis/skill-evolve/PLAN.md. Off by default.",
+        # Hidden, like --discovery, which it requires. Skill evolution composes a methodology
+        # guide for an assay no skill covers, from the existing skills and the transforms.
+        help=argparse.SUPPRESS,
     )
     args = parser.parse_args()
     if args.evolve and not args.discovery:
         parser.error("--evolve requires --discovery (the skill maker runs inside the "
                      "discovery sequence)")
+    if args.discovery:
+        # Discovery restarts this file by path inside a separate conda environment (os.execv
+        # below), which cannot import an installed package. Until that is redesigned, say so
+        # plainly rather than fail halfway through.
+        parser.error("method discovery and skill evolution are not available in the installed "
+                     "package yet")
 
     # The CLI is the DEPLOYMENT entry point, so it opts in to the deployment default
     # explicitly. Measured arms never come through here — they go through
@@ -312,7 +318,7 @@ if __name__ == "__main__":
         import os
         import sys
 
-        import discovery                                      # noqa: E402
+        from . import discovery                                      # noqa: E402
         tools.set_output_dir(args.output_dir)
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
         tools.set_dialog_log(f"{args.output_dir}/dialog_log.txt")
@@ -337,7 +343,7 @@ if __name__ == "__main__":
         # to disk; read it back here, in whichever interpreter this now is, and expose
         # it. Lazy import inside the branch, like discovery itself.
         if cfg.get("evolve"):
-            import skillmaker                                  # noqa: E402
+            from . import skillmaker                                  # noqa: E402
             ev = skillmaker.attach(args.output_dir)
             print(f"[EVOLVE] status={(ev or {}).get('status', 'no_report')} "
                   f"skills={sorted((ev or {}).get('skills', {}))}")
@@ -366,5 +372,5 @@ if __name__ == "__main__":
         # The input was made read-only before the reporter ran and stayed that way for
         # the whole analysis. A hard kill skips this; `chmod -R u+w <data>` reverses it.
         if cfg.get("discovery"):
-            import discovery                                  # noqa: E402
+            from . import discovery                                  # noqa: E402
             discovery.restore_input(args.output_dir)
