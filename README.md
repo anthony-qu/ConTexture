@@ -29,10 +29,11 @@ your terminal says `contexture` is not found, open a new terminal window, or run
 contexture
 ```
 
-The first time, it asks which model provider your API key is from and for the key itself, and
-saves it where only you can read it. Then it opens the page in your browser. There you give the
-path to your data (an `.h5ad` or `.h5mu` file), describe the goal, and watch each step as it runs:
-the code, its output and the figures.
+This opens the page in your browser. The first time, a **Model keys** panel asks for an API key
+from a model provider (Anthropic, OpenAI, DeepSeek, Google Gemini or another). The key is saved
+on your computer where only you can read it. Then you give the path to your data (an `.h5ad` or
+`.h5mu` file), describe the goal, and watch each step as it runs: the code, its output and the
+figures.
 
 Each analysis gets its own folder in `contexture-runs/`, inside the folder you started
 `contexture` from. An analysis keeps going if you close the browser.
@@ -54,9 +55,11 @@ contexture run sample.h5ad "Cluster the spots, name the spatial domains, and sav
 
 ## Keys and models
 
-`contexture key` adds or changes a key. Keys are also read from the environment (for example
-`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY` or `GEMINI_API_KEY`) and from a `.env`
-file in the current folder. You pay your model provider for what you use.
+Add, replace or remove a key from the **Model keys** button in the page's sidebar, or with
+`contexture key` in the terminal. Saved keys live in `~/.config/contexture/keys.env`. A key set
+in your shell environment (for example `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`
+or `GEMINI_API_KEY`) or in a `.env` file in the current folder takes priority over a saved one.
+You pay your model provider for what you use.
 
 The agent runs the code it writes without a sandbox, so work on a copy of your data.
 

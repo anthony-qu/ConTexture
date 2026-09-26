@@ -11,7 +11,8 @@ USAGE = f"""ConTexture {__version__}: an autonomous agent for spatial multi-omic
   contexture                       start the web page and open it in your browser
   contexture serve [options]       the same, with options (see `contexture serve --help`)
   contexture run DATA "GOAL" ...   run one analysis in the terminal (see `contexture run --help`)
-  contexture key                   add or change a model API key
+  contexture key                   add or change a model API key in the terminal
+                                   (the web page has a "Model keys" panel too)
   contexture --version             print the version
 """
 
@@ -37,13 +38,15 @@ def main(argv: list[str] | None = None) -> None:
 
     keys.load()
     asking_for_help = any(a in ("-h", "--help") for a in rest)
-    if not asking_for_help:
-        keys.ask_and_save()
 
     if command == "serve":
+        # No terminal question here: the page opens its "Model keys" panel when no key is set.
         from . import serve
         serve.main(rest)
         return
+
+    if not asking_for_help:
+        keys.ask_and_save()
 
     # `run`: the agent's own command line, in this same interpreter. PYTHONSAFEPATH keeps the
     # current folder, where the agent writes files, off the import path.

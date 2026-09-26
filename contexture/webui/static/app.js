@@ -8,34 +8,96 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
 
 // ------------------------------------------------------------------ decoration
 
-// A hexagonal array of spots, coloured in bands like tissue domains on a spatial slide.
-function spotMap(rings) {
-  const colors = ["var(--accent)", "var(--C)", "var(--G)", "var(--T)"];
-  const sp = 10, r = 3.9, R = rings * sp;
-  let circles = "";
-  for (let q = -rings; q <= rings; q++) {
-    for (let s = -rings; s <= rings; s++) {
-      if (Math.abs(q + s) > rings) continue;
-      const x = sp * (q + s / 2), y = sp * (s * Math.sqrt(3) / 2);
-      const t = (y + 0.55 * (x * x) / R - 0.2 * x) / R;          // curved, layered bands
-      const band = Math.max(0, Math.min(3, Math.floor((t + 1.05) * 1.9)));
-      circles += `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${r}" style="fill:${colors[band]}"/>`;
+// A small pixel-art double helix: two strands crossing, with base-pair rungs between them
+// in the four base colours (A-T and C-G pairs). Drawn as 1x1 squares on a grid, so it stays
+// sharp at whole-number sizes.
+function pixelHelix(cols = 9, rows = 13) {
+  const c = (cols - 1) / 2, amp = c - 0.6, period = 12;
+  const pairs = [["var(--A)", "var(--T)"], ["var(--C)", "var(--G)"], ["var(--T)", "var(--A)"], ["var(--G)", "var(--C)"]];
+  const px = (x, y, col) => `<rect x="${x}" y="${y}" width="1" height="1" style="fill:${col}"/>`;
+  let rungs = "", back = "", front = "";
+  for (let y = 0; y < rows; y++) {
+    const t = (2 * Math.PI * y) / period;
+    const x1 = Math.round(c + amp * Math.sin(t)), x2 = Math.round(c - amp * Math.sin(t));
+    const firstInFront = Math.cos(t) >= 0;
+    if (y % 2 === 1 && Math.abs(x1 - x2) >= 3) {
+      const [a, b] = pairs[(y >> 1) % 4], lo = Math.min(x1, x2), hi = Math.max(x1, x2), mid = (lo + hi) / 2;
+      for (let x = lo + 1; x < hi; x++) rungs += px(x, y, x < mid ? a : b);
     }
+    const s1 = px(x1, y, "var(--accent)"), s2 = px(x2, y, "#cfcfcf");
+    if (firstInFront) { back += s2; front += s1; } else { back += s1; front += s2; }
   }
-  const h = R + sp;
-  return `<svg viewBox="${-h} ${-h} ${2 * h} ${2 * h}" aria-hidden="true">${circles}</svg>`;
+  return `<svg viewBox="0 0 ${cols} ${rows}" shape-rendering="crispEdges" aria-hidden="true">${rungs}${back}${front}</svg>`;
 }
 
-function sequence(n) {
-  const bases = "ACGT";
-  let seed = 7, out = "";
-  for (let i = 0; i < n; i++) {
-    // Math.imul keeps the product in 32 bits; a plain multiply loses the low bits in a double.
-    seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
-    const b = bases[(seed >>> 16) % 4];
-    out += `<span class="${b}">${b}</span>`;
+// The browser tab gets the same icon. CSS variables do not reach a data URL, so resolve them.
+function setFavicon() {
+  const css = getComputedStyle(document.documentElement);
+  const svg = pixelHelix().replace(/var\((--[\w-]+)\)/g, (_, v) => css.getPropertyValue(v).trim())
+    .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
+  const link = document.createElement("link");
+  link.rel = "icon";
+  link.href = "data:image/svg+xml," + encodeURIComponent(svg);
+  document.head.appendChild(link);
+}
+
+// The background: one large double helix, turning slowly about its own axis, drawn in square
+// pixels only a shade lighter than the page. The strand nearer the viewer is drawn lighter.
+function startBackgroundHelix() {
+  const canvas = $("#bg-helix"), ctx = canvas.getContext("2d");
+  const css = getComputedStyle(document.documentElement);
+  const grey = (v) => parseInt(css.getPropertyValue(v).trim().slice(1, 3), 16);
+  const backG = grey("--helix-back"), frontG = grey("--helix-front"), rungG = grey("--helix-rung");
+  const P = 8;                                   // one pixel of the drawing, in CSS pixels
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let W = 0, H = 0, dpr = 1, last = 0;
+
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false;
   }
-  return out;
+  const cell = (gx, gy, g) => { ctx.fillStyle = `rgb(${g},${g},${g})`; ctx.fillRect(gx * P, gy * P, P, P); };
+
+  function draw(time) {
+    ctx.clearRect(0, 0, W, H);
+    const cy = Math.round(H * 0.5 / P), amp = Math.min(H * 0.2, 160) / P;
+    const k = (2 * Math.PI * P) / 460, phase = (time / 9000) * 2 * Math.PI;
+    const cols = Math.ceil(W / P) + 1;
+    const strands = [[], []];
+    for (let gx = 0; gx < cols; gx++) {
+      const t = gx * k + phase, y = amp * Math.sin(t), z = Math.cos(t);
+      strands[0].push({ y: Math.round(cy + y), z });
+      strands[1].push({ y: Math.round(cy - y), z: -z });
+      if (gx % 4 === 0) {                        // base-pair rungs, faintest of all
+        const a = Math.round(cy + y), b = Math.round(cy - y);
+        for (let gy = Math.min(a, b) + 2; gy < Math.max(a, b) - 1; gy++) cell(gx, gy, rungG);  // a gap at each strand
+      }
+    }
+    // Back halves first, front halves last, so the nearer strand crosses over the farther.
+    for (const pass of [false, true]) {
+      for (const s of strands) {
+        for (let gx = 0; gx < s.length; gx++) {
+          const p = s[gx];
+          if ((p.z >= 0) !== pass) continue;
+          const g = Math.round(backG + (frontG - backG) * (p.z + 1) / 2);
+          // Fill from the previous column's height to this one, so a steep stretch stays joined.
+          const prev = gx > 0 ? s[gx - 1].y : p.y;
+          for (let gy = Math.min(prev, p.y); gy <= Math.max(prev, p.y); gy++) cell(gx, gy, g);
+        }
+      }
+    }
+  }
+
+  function frame(time) {
+    if (time - last > 40) { draw(time); last = time; }   // about 25 frames a second is plenty
+    requestAnimationFrame(frame);
+  }
+  resize();
+  window.addEventListener("resize", () => { resize(); draw(last); });
+  if (still) draw(0); else requestAnimationFrame(frame);
 }
 
 // ------------------------------------------------------------------ helpers
@@ -195,20 +257,106 @@ function renderSection(s, view) {
 
 const app = { config: null, runs: [], view: null, listTimer: null };
 
-async function loadConfig() {
+async function loadConfig(first) {
+  const previousDefault = app.config && app.config.default_model;
   app.config = await api("/api/config");
   const c = app.config;
-  $("#f-model").value = c.default_model;
-  $("#f-turns").value = c.default_turns;
+  // Follow the key: replace the model only while the user has not typed their own.
+  const model = $("#f-model");
+  if (!model.value || model.value === previousDefault) model.value = c.default_model;
   $("#model-list").innerHTML = c.models.map((m) => `<option value="${esc(m)}">`).join("");
-  $("#runs-dir-note").textContent = `Saved in ${c.runs_dir}`;
-  const note = $("#key-note");
-  if (c.keys.length) {
-    note.classList.remove("missing");
-    note.innerHTML = "API keys found: " + c.keys.map((k) => `<span class="pill">${esc(k)}</span>`).join("");
-  } else {
-    note.classList.add("missing");
-    note.textContent = "No API key found. Put one in the .env file next to agent.py, then restart the page.";
+  renderKeyNote();
+  if (first && !c.keys.length) openKeys();
+}
+
+function renderKeyNote() {
+  const c = app.config, has = c.keys.length > 0, note = $("#key-note");
+  note.hidden = has;
+  note.classList.toggle("missing", !has);
+  note.innerHTML = `No model API key yet. <button type="button" class="linkish" data-open-keys>Add a key</button>
+     to start an analysis.`;
+  $("#f-start").disabled = !has;
+  $("#keys-dot").classList.toggle("on", has);
+  $("#keys-dot").classList.toggle("off", !has);
+}
+
+// ------------------------------------------------------------------ model keys panel
+
+const SOURCE_TEXT = {
+  settings: "Saved on this computer",
+  environment: "From your shell environment",
+  env_file: "From the .env file in this folder",
+};
+
+async function openKeys() {
+  $("#keys-error").hidden = true;
+  await refreshKeys();
+  if (!$("#keys-dialog").open) $("#keys-dialog").showModal();
+  // Put the cursor in the first empty key box, not on the close button.
+  const empty = [...document.querySelectorAll("#keys-rows .kd-row:not(.has) input")][0];
+  (empty || $("#keys-rows input")).focus();
+}
+
+async function refreshKeys() {
+  const data = await api("/api/keys");
+  $("#keys-file").textContent = data.file;
+  const rows = $("#keys-rows");
+  rows.innerHTML = "";
+  for (const k of data.keys) rows.appendChild(keyRow(k));
+}
+
+function keyRow(k) {
+  const on = Boolean(k.source);
+  const node = el(`<div class="kd-row${on ? " has" : ""}">
+    <div class="kd-name"><b>${esc(k.label)}</b>
+      <span class="kd-status${on ? " on" : ""}">${on ? `${esc(SOURCE_TEXT[k.source] || "Set")} · ${esc(k.hint)}` : "Not set"}</span></div>
+    <div class="kd-input">
+      <input type="password" autocomplete="off" aria-label="${esc(k.label)} key"
+             placeholder="${on ? "Paste a new key to replace it" : "Paste your key"}">
+      <button class="btn btn-primary btn-sm" type="button" data-act="save">Save</button>
+      ${k.source === "settings" ? `<button class="btn btn-ghost btn-sm" type="button" data-act="remove">Remove</button>` : ""}
+    </div></div>`);
+  const input = node.querySelector("input");
+  node.querySelector('[data-act="save"]').addEventListener("click", () => saveKey(k.var, input));
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") saveKey(k.var, input); });
+  const remove = node.querySelector('[data-act="remove"]');
+  if (remove) remove.addEventListener("click", () => removeKey(k.var, k.label));
+  return node;
+}
+
+async function saveKey(name, input) {
+  const err = $("#keys-error");
+  err.hidden = true;
+  const hadNone = !app.config || !app.config.keys.length;
+  try {
+    await api("/api/keys", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ var: name, value: input.value }),
+    });
+    input.value = "";
+    await refreshKeys();
+    await loadConfig(false);
+    if (hadNone && app.config.keys.length) {         // the first key: straight on to the form
+      $("#keys-dialog").close();
+      $("#f-data").focus();
+    }
+    return true;
+  } catch (e) {
+    err.textContent = e.message;
+    err.hidden = false;
+    return false;
+  }
+}
+
+async function removeKey(name, label) {
+  if (!confirm(`Remove the saved ${label} key from this computer?`)) return;
+  try {
+    await api(`/api/keys/${encodeURIComponent(name)}`, { method: "DELETE" });
+    await refreshKeys();
+    await loadConfig(false);
+  } catch (e) {
+    $("#keys-error").textContent = e.message;
+    $("#keys-error").hidden = false;
   }
 }
 
@@ -342,7 +490,7 @@ function renderFigures(view) {
     <a class="fig" href="${fileUrl(view.id, f.path)}" target="_blank" rel="noopener">
       <div class="img"><img loading="lazy" src="${fileUrl(view.id, f.path)}?v=${Math.round(f.mtime)}" alt="${esc(f.path)}"></div>
       <div class="cap" title="${esc(f.path)}">${esc(f.path)}</div></a>`).join("")
-    : `<div class="empty-state"><div class="mini-map">${spotMap(3)}</div>No figures yet.</div>`;
+    : `<div class="empty-state"><div class="mini-map">${pixelHelix()}</div>No figures yet.</div>`;
 }
 
 const isResult = (p) => /\.(h5ad|h5mu)$/i.test(p) || /(^|\/)(results\.json|analysis\.md)$/i.test(p);
@@ -379,7 +527,7 @@ $("#new-form").addEventListener("submit", async (ev) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         data_path: $("#f-data").value, goal: $("#f-goal").value,
-        model: $("#f-model").value, max_turns: Number($("#f-turns").value),
+        model: $("#f-model").value,
       }),
     });
     $("#f-goal").value = "";
@@ -388,7 +536,7 @@ $("#new-form").addEventListener("submit", async (ev) => {
     err.textContent = e.message;
     err.hidden = false;
   } finally {
-    btn.disabled = false;
+    btn.disabled = !(app.config && app.config.keys.length);
   }
 });
 
@@ -404,6 +552,22 @@ $("#r-stop").addEventListener("click", async () => {
 });
 
 $("#r-goal").addEventListener("click", () => $("#r-goal").classList.toggle("open"));
+$("#open-keys").addEventListener("click", () => openKeys());
+$("#close-keys").addEventListener("click", () => $("#keys-dialog").close());
+$("#keys-dialog").addEventListener("click", (ev) => {
+  // Only a click on the dimmed backdrop closes it. A click on the panel's own padding also
+  // targets the dialog element, so test the position, not just the target.
+  const d = $("#keys-dialog"), r = d.getBoundingClientRect();
+  const outside = ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom;
+  if (ev.target === d && outside) d.close();
+});
+document.addEventListener("click", (ev) => {
+  if (ev.target.closest("[data-open-keys]")) openKeys();
+});
+$("#other-save").addEventListener("click", async () => {
+  const name = $("#other-var").value.trim().toUpperCase();
+  if (await saveKey(name, $("#other-val"))) $("#other-var").value = "";
+});
 document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => selectTab(b.dataset.tab)));
 $("#to-latest").addEventListener("click", () => {
   window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
@@ -414,8 +578,9 @@ window.addEventListener("hashchange", route);
 
 // ------------------------------------------------------------------ start
 
-document.querySelectorAll("[data-spotmap]").forEach((n) => { n.innerHTML = spotMap(Number(n.dataset.spotmap)); });
-$(".seq").innerHTML = sequence(40);
-loadConfig().catch(() => {});
+document.querySelectorAll("[data-pixel-helix]").forEach((n) => { n.innerHTML = pixelHelix(); });
+setFavicon();
+startBackgroundHelix();
+loadConfig(true).catch(() => {});
 route();
 app.listTimer = setInterval(refreshList, 4000);

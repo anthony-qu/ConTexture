@@ -18,8 +18,10 @@ How it is built, and why:
 - THE ADDRESS CARRIES A RANDOM ACCESS CODE, as Jupyter's does. The server listens only on this
   computer's own address, but on a shared machine such as a cluster node every other user can
   reach that address too, and an open page would let them start analyses billed to your key.
-- The API key is never entered in the page. It comes from the environment, a `.env` file in
-  the folder the command is run from, or the user's own settings file (see `keys.py`).
+- API keys: the page's "Model keys" panel saves a key to the user's own settings file (see
+  `keys.py`), readable only by its owner, and the server then passes it to every new run. A
+  saved key is never sent back to the browser; the page sees only where a key came from and its
+  last four characters.
 - Method discovery and skill evolution are not offered here yet; they need a separate conda
   environment that this repository does not build.
 """
@@ -217,6 +219,43 @@ def _config(request: Request):
                          "max_concurrent": Settings.max_concurrent, "running": running})
 
 
+def _key_file() -> str:
+    """The settings file's location, with the home folder written as ~ for the page."""
+    path, home = str(keys.settings_file()), str(Path.home())
+    return "~" + path[len(home):] if path.startswith(home + os.sep) else path
+
+
+def _keys(request: Request):
+    return JSONResponse({"file": _key_file(), "keys": keys.status()})
+
+
+async def _save_key(request: Request):
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"error": "The request was not readable."}, status_code=400)
+    var = str(body.get("var", "")).strip().upper()
+    value = str(body.get("value", ""))
+    if not keys.KEY_NAME.match(var):
+        return JSONResponse({"error": "A key's name must end in _API_KEY, for example "
+                                      "MISTRAL_API_KEY."}, status_code=400)
+    if not value.strip():
+        return JSONResponse({"error": "Paste the key first."}, status_code=400)
+    try:
+        keys.save(var, value)
+    except ValueError as e:
+        return JSONResponse({"error": f"Not saved: {e}."}, status_code=400)
+    return JSONResponse({"file": _key_file(), "keys": keys.status()})
+
+
+def _remove_key(request: Request):
+    var = request.path_params["var"]
+    if not keys.remove(var):
+        return JSONResponse({"error": "That key is not in the settings file, so there is nothing "
+                                      "to remove here."}, status_code=404)
+    return JSONResponse({"file": _key_file(), "keys": keys.status()})
+
+
 def _list(request: Request):
     return JSONResponse({"runs": [_status(r) for r in _runs()]})
 
@@ -394,6 +433,9 @@ def build_app() -> Starlette:
     routes = [
         Route("/", _index),
         Route("/api/config", _config),
+        Route("/api/keys", _keys, methods=["GET"]),
+        Route("/api/keys", _save_key, methods=["POST"]),
+        Route("/api/keys/{var}", _remove_key, methods=["DELETE"]),
         Route("/api/runs", _list, methods=["GET"]),
         Route("/api/runs", _start, methods=["POST"]),
         Route("/api/runs/{rid}", _detail),
