@@ -30,6 +30,35 @@ function pixelHelix(cols = 9, rows = 13) {
   return `<svg viewBox="0 0 ${cols} ${rows}" shape-rendering="crispEdges" aria-hidden="true">${rungs}${back}${front}</svg>`;
 }
 
+// The name in the same pixel style: a 7-row bitmap font, only the letters "ConTexture" needs.
+// "Con" is drawn in the text colour and "Texture" in the accent. Every other text on the page
+// stays a normal font.
+const PIXEL_GLYPHS = {
+  C: [".###.", "#...#", "#....", "#....", "#....", "#...#", ".###."],
+  T: ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."],
+  o: [".....", ".....", ".###.", "#...#", "#...#", "#...#", ".###."],
+  n: [".....", ".....", "#.##.", "##..#", "#...#", "#...#", "#...#"],
+  e: [".....", ".....", ".###.", "#...#", "#####", "#....", ".###."],
+  x: [".....", ".....", "#...#", ".#.#.", "..#..", ".#.#.", "#...#"],
+  t: ["....", ".#..", "####", ".#..", ".#..", ".#..", "..##"],
+  u: [".....", ".....", "#...#", "#...#", "#...#", "#..##", ".##.#"],
+  r: ["....", "....", "#.##", "##..", "#...", "#...", "#..."],
+};
+function pixelWordmark(parts = [["Con", "var(--ink)"], ["Texture", "var(--accent)"]]) {
+  let x = 0, rects = "";
+  for (const [text, col] of parts) {
+    for (const ch of text) {
+      const g = PIXEL_GLYPHS[ch];
+      g.forEach((row, y) => [...row].forEach((on, dx) => {
+        if (on === "#") rects += `<rect x="${x + dx}" y="${y}" width="1" height="1" style="fill:${col}"/>`;
+      }));
+      x += g[0].length + 1;
+    }
+  }
+  const w = x - 1;
+  return `<svg viewBox="0 0 ${w} 7" width="${w * 3}" height="21" shape-rendering="crispEdges" aria-hidden="true">${rects}</svg>`;
+}
+
 // The browser tab gets the same icon. CSS variables do not reach a data URL, so resolve them.
 function setFavicon() {
   const css = getComputedStyle(document.documentElement);
@@ -579,6 +608,7 @@ window.addEventListener("hashchange", route);
 // ------------------------------------------------------------------ start
 
 document.querySelectorAll("[data-pixel-helix]").forEach((n) => { n.innerHTML = pixelHelix(); });
+document.querySelectorAll("[data-pixel-word]").forEach((n) => { n.innerHTML = pixelWordmark(); });
 setFavicon();
 startBackgroundHelix();
 loadConfig(true).catch(() => {});
