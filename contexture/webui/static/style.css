@@ -10,10 +10,11 @@
   --muted: #a3a3a3;
   --line: #474747;
   --line-2: #565656;
-  --accent: #5cc2b7;
-  --accent-2: #77d2c7;
-  --accent-soft: rgba(92, 194, 183, 0.16);
-  --on-accent: #10302c;
+  /* University of Washington purple (#4B2E83) at the same hue, lightened to read on #333 */
+  --accent: #8f70cd;
+  --accent-2: #a38ad8;
+  --accent-soft: rgba(143, 112, 205, 0.18);
+  --on-accent: #1b1233;
   --A: #4cbb86;
   --C: #6f9be0;
   --G: #e5b24a;
