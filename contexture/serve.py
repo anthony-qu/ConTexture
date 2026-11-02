@@ -51,7 +51,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import keys
+from . import discoveryenv, keys
 from .webui import transcript
 
 ROOT = Path(__file__).resolve().parent
@@ -154,6 +154,8 @@ def _status(run: Path) -> dict:
         note = "The turn budget ran out before the agent said it was done."
     return {"id": run.name, "goal": cfg.get("goal", ""), "data_path": cfg.get("data_path", ""),
             "model": cfg.get("model", ""), "max_turns": cfg.get("max_turns"),
+            "discovery": bool(cfg.get("discovery")), "evolve": bool(cfg.get("evolve")),
+            "discovery_model": cfg.get("discovery_model") or "",
             "created": cfg.get("created"), "ended": end_time, "status": status,
             "active": status in ("running", "stopping"), "note": note}
 
@@ -216,7 +218,21 @@ def _config(request: Request):
                          "models": list(dict.fromkeys([default, *SUGGESTED_MODELS])),
                          "keys": providers,
                          "runs_dir": str(Settings.runs_dir),
-                         "max_concurrent": Settings.max_concurrent, "running": running})
+                         "max_concurrent": Settings.max_concurrent, "running": running,
+                         "discovery": _discovery_status()})
+
+
+_disc_status: tuple[float, dict] = (0.0, {})
+
+
+def _discovery_status() -> dict:
+    """`discoveryenv.status()` plus its explanation, cached briefly: it asks conda each time."""
+    global _disc_status
+    if time.time() - _disc_status[0] > 30:
+        st = discoveryenv.status()
+        st["explain"] = discoveryenv.explain(st)
+        _disc_status = (time.time(), st)
+    return _disc_status[1]
 
 
 def _key_file() -> str:
@@ -289,6 +305,15 @@ async def _start(request: Request):
     if not 1 <= max_turns <= 500:
         return JSONResponse({"error": "The turn budget must be between 1 and 500."},
                             status_code=400)
+    discovery = bool(body.get("discovery"))
+    evolve = bool(body.get("evolve"))
+    discovery_model = str(body.get("discovery_model") or "").strip()
+    if evolve and not discovery:
+        return JSONResponse({"error": "Skill evolution runs inside method discovery; turn "
+                                      "method discovery on as well."}, status_code=400)
+    if discovery_model and not re.fullmatch(r"[\w./:@-]{3,120}", discovery_model):
+        return JSONResponse({"error": "That discovery model name does not look right."},
+                            status_code=400)
     with _lock:
         running = sum(1 for r in _runs() if _status(r)["active"])
         if running >= Settings.max_concurrent:
@@ -306,6 +331,9 @@ async def _start(request: Request):
         run.mkdir(parents=True)
         cfg = {"goal": goal, "data_path": str(data_path), "model": model,
                "max_turns": max_turns, "created": time.time()}
+        if discovery:
+            cfg.update({"discovery": True, "evolve": evolve,
+                        "discovery_model": discovery_model or None})
         (run / "run.json").write_text(json.dumps(cfg, indent=2))
         console = open(run / "console.txt", "w")
         proc = subprocess.Popen(
@@ -360,6 +388,63 @@ def _log(request: Request):
             item["shortened"] = True
         out.append(item)
     return JSONResponse({"total": len(sections), "sections": out})
+
+
+def _read_text(path: Path, limit: int = 200_000) -> str | None:
+    try:
+        return path.read_text(errors="replace")[:limit]
+    except FileNotFoundError:
+        return None
+
+
+def _discovery(request: Request):
+    """The documents a method discovery run writes before the analysis, rendered for the page.
+
+    Everything comes from files in the run's `discovery/` folder, so a reopened page shows
+    the same as a live one. Transcripts and token usage inside the JSON reports are not sent;
+    the page has the transcript, and the reports can be downloaded from the Files tab.
+    """
+    run = _run_dir(request.path_params["rid"])
+    if run is None:
+        return JSONResponse({"error": "No such run."}, status_code=404)
+    d = run / "discovery"
+    out: dict = {"report": None, "skills": [], "evolution": None, "plan": None,
+                 "requests": None, "method": None}
+    text = _read_text(d / "data_report.md")
+    if text is not None:
+        out["report"] = _md.render(text)
+    ev = _read_json(d / "evolution_report.json")
+    if ev is not None:
+        out["evolution"] = {"status": ev.get("status"), "target": ev.get("target"),
+                            "error": ev.get("error"), "elapsed_sec": ev.get("elapsed_sec"),
+                            "model": ev.get("maker_model"),
+                            "n_snippets_passed": ev.get("n_snippets_passed")}
+    if (d / "evolved").is_dir():
+        for p in sorted((d / "evolved").glob("*.md")):
+            out["skills"].append({"name": p.stem, "html": _md.render(_read_text(p) or "")})
+    text = _read_text(d / "plan.md")
+    if text is not None:
+        out["plan"] = _md.render(text)
+    reqs = _read_json(d / "method_requests.json")
+    if reqs is not None:
+        out["requests"] = reqs if isinstance(reqs, list) else []
+    rep = _read_json(d / "discovery_report.json")
+    if rep is not None:
+        cands = []
+        for c in rep.get("candidates") or []:
+            if isinstance(c, dict):
+                cands.append({k: c.get(k) for k in
+                              ("rank", "name", "repo", "url", "stars", "last_push", "language",
+                               "fit_score", "fit_notes", "pip_installable")})
+        cands.sort(key=lambda c: (c.get("rank") is None, c.get("rank") or 0))
+        install = rep.get("install") if isinstance(rep.get("install"), dict) else {}
+        out["method"] = {"status": rep.get("status"), "error": rep.get("error"),
+                         "chosen": rep.get("chosen"), "choice_reason": rep.get("choice_reason"),
+                         "import_name": rep.get("import_name"),
+                         "install_status": install.get("status"),
+                         "model": rep.get("scout_model"), "elapsed_sec": rep.get("elapsed_sec"),
+                         "candidates": cands}
+    return JSONResponse(out)
 
 
 def _stop(request: Request):
@@ -440,6 +525,7 @@ def build_app() -> Starlette:
         Route("/api/runs", _start, methods=["POST"]),
         Route("/api/runs/{rid}", _detail),
         Route("/api/runs/{rid}/log", _log),
+        Route("/api/runs/{rid}/discovery", _discovery),
         Route("/api/runs/{rid}/stop", _stop, methods=["POST"]),
         Route("/api/runs/{rid}/files/{path:path}", _file),
         Mount("/static", StaticFiles(directory=WEB / "static")),

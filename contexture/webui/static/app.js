@@ -176,6 +176,11 @@ const STATUS_TEXT = {
   failed: "Failed", stopped: "Stopped", ended: "Ended unexpectedly",
 };
 
+const STAGE_NAMES = {
+  REPORTER: "Data reporter", MAKER: "Skill maker", PLANNER: "Planner",
+  SCOUT: "Method discovery agent", DISCOVERY: "Method discovery",
+};
+
 function who(agent) {
   if (!agent) return "";
   const spec = /special/i.test(agent);
@@ -218,13 +223,17 @@ function stateSummary(text) {
 
 function renderSection(s, view) {
   const t = s.text || "";
+  if (["CODE", "SESSION", "AGENT-START", "ROUTING"].includes(s.kind)) view.analysisStarted = true;
   switch (s.kind) {
-    case "CODE": {
-      view.cell += 1;
+    case "CODE": case "REPORT-CODE": case "PLAN-CODE": {
+      // REPORT-CODE and PLAN-CODE are the data reporter's and the planner's own code, run on
+      // the data before the analysis; they are not numbered with the analysis cells.
+      const stage = s.kind === "REPORT-CODE" ? "Data reporter" : s.kind === "PLAN-CODE" ? "Planner" : "";
+      if (!stage) view.cell += 1;
       const lines = t.split("\n").length;
       const long = lines > 26;
-      const node = el(`<div class="entry k-code"><div class="cell${long ? " long" : ""}"><div class="cell-head">
-        <span>In [${view.cell}]</span>${who(s.agent)}</div><pre><code>${highlight(t)}</code></pre>
+      const node = el(`<div class="entry k-code${stage ? " pre" : ""}"><div class="cell${long ? " long" : ""}"><div class="cell-head">
+        <span>${stage ? esc(stage) : `In [${view.cell}]`}</span>${who(s.agent)}</div><pre><code>${highlight(t)}</code></pre>
         ${long ? `<button class="more" type="button">Show all ${lines} lines</button>` : ""}</div></div>`);
       if (long) {
         const cell = node.querySelector(".cell"), btn = node.querySelector(".more");
@@ -235,7 +244,7 @@ function renderSection(s, view) {
       }
       return node;
     }
-    case "OUTPUT": {
+    case "OUTPUT": case "REPORT-OUTPUT": case "PLAN-OUTPUT": {
       const err = /Traceback \(most recent call last\)|^\w*Error\b/m.test(t);
       const empty = !t.trim();
       const node = el(`<div class="entry k-output out${err ? " err" : ""}${empty ? " empty" : ""}">
@@ -277,6 +286,15 @@ function renderSection(s, view) {
       return el(`<div class="entry notice"><b>Model usage.</b> ${esc(t)}</div>`);
     case "SESSION":
       return el(`<details class="entry fold"><summary>Session details</summary><pre>${esc(t)}</pre></details>`);
+    case "REPORTER": case "MAKER": case "PLANNER": case "SCOUT": case "DISCOVERY": {
+      // Progress lines of the stages that run before the analysis (method discovery).
+      const name = STAGE_NAMES[s.kind];
+      const [first, ...more] = t.split("\n");
+      const rest = more.join("\n").trim();
+      const head = esc(first.replace(/\s+/g, " ").slice(0, 160));
+      if (!rest) return el(`<div class="entry notice stage"><b>${name}.</b> ${head}</div>`);
+      return el(`<details class="entry fold stage"><summary><b>${name}</b> <span class="muted">${head}</span></summary><pre>${esc(t)}</pre></details>`);
+    }
     default:
       return el(`<details class="entry fold"><summary>${esc(s.kind.toLowerCase())}</summary><pre>${esc(t)}</pre></details>`);
   }
@@ -295,7 +313,19 @@ async function loadConfig(first) {
   if (!model.value || model.value === previousDefault) model.value = c.default_model;
   $("#model-list").innerHTML = c.models.map((m) => `<option value="${esc(m)}">`).join("");
   renderKeyNote();
+  if (c.discovery) {
+    $("#disc-env").textContent = c.discovery.explain || "";
+    $("#disc-env").classList.toggle("missing", !c.discovery.isolated);
+  }
   if (first && !c.keys.length) openKeys();
+}
+
+// The two switches: skill evolution runs inside method discovery, so it is offered only then.
+function syncDiscoveryForm() {
+  const on = $("#f-discovery").checked;
+  $("#f-evolve").disabled = !on;
+  if (!on) $("#f-evolve").checked = false;
+  $("#disc-extra").hidden = !on;
 }
 
 function renderKeyNote() {
@@ -425,11 +455,14 @@ function closeRun() {
 function openRun(id) {
   if (app.view && app.view.id === id) return;
   closeRun();
-  const view = app.view = { id, total: 0, cell: 0, last: null, figSig: "", fileSig: "",
-                            info: null, timer: null, clock: null, finalPass: false };
+  const view = app.view = { id, total: 0, cell: 0, last: null, figSig: "", fileSig: "", discSig: "",
+                            analysisStarted: false, info: null, timer: null, clock: null, finalPass: false };
   $("#timeline").innerHTML = "";
   $("#gallery").innerHTML = "";
   $("#file-rows").innerHTML = "";
+  $("#stages").innerHTML = "";
+  $("#disc-docs").innerHTML = "";
+  $("#tab-discovery").hidden = true;
   $("#console").hidden = true;
   $("#r-goal").classList.remove("open");
   $("#r-log").href = fileUrl(id, "dialog_log.txt");
@@ -472,6 +505,12 @@ async function tick(view) {
   }
   renderFigures(view);
   renderFiles(view);
+  if (info.discovery) {
+    $("#tab-discovery").hidden = false;
+    try { renderDiscovery(view, await api(`/api/runs/${encodeURIComponent(view.id)}/discovery`)); }
+    catch (e) { /* shown on the next tick */ }
+    if (app.view !== view) return;
+  }
   $("#waiting").hidden = !info.active;
   if (info.console_tail && info.console_tail.trim()) {
     $("#console").innerHTML = `<span class="label">Last lines the run printed</span><pre>${esc(info.console_tail)}</pre>`;
@@ -506,7 +545,65 @@ function renderMeta(view) {
     `<span>${esc(duration(end - r.created))}</span>`,
     `<span>${u.model_calls || 0} model calls · ${tokens(u.input_tokens || 0)} tokens in · ${tokens(u.output_tokens || 0)} out</span>`,
     `<span>turn budget ${esc(r.max_turns)}</span>`,
+    r.discovery ? `<span>method discovery${r.evolve ? " + skill evolution" : ""}${
+      r.discovery_model ? ` · discovery agents on <b>${esc(r.discovery_model)}</b>` : ""}</span>` : "",
   ].join("");
+}
+
+// ------------------------------------------------------------------ the Discovery tab
+
+function renderDiscovery(view, d) {
+  const r = view.info;
+  const sig = JSON.stringify(d) + (view.analysisStarted ? "A" : "") + r.status;
+  if (sig === view.discSig) return;
+  view.discSig = sig;
+  const nReq = Array.isArray(d.requests) ? d.requests.length : null;
+  // Each stage: [label, done, detail, failed]. The first stage not done is the one running.
+  const stages = [["Data report", d.report !== null, ""]];
+  if (r.evolve) {
+    const ev = d.evolution;
+    stages.push(["Skill maker", ev !== null,
+      ev ? (ev.status === "ok" ? `composed ${d.skills.length} skill${d.skills.length === 1 ? "" : "s"}` : ev.status || "") : "",
+      ev && ev.status && ev.status !== "ok" && ev.status !== "no_target"]);
+  }
+  stages.push(["Plan", d.plan !== null, nReq === null ? "" : nReq ? `${nReq} method request${nReq === 1 ? "" : "s"}` : "no method request"]);
+  const m = d.method;
+  if (nReq || (m && m.status !== "no_request")) {
+    stages.push(["Method discovery agent", m !== null,
+      m ? (m.chosen ? `installed ${m.chosen}` : m.status || "") : "", m && m.status && !m.chosen]);
+  }
+  stages.push(["Analysis", view.analysisStarted, ""]);
+  let nowSeen = false;
+  $("#stages").innerHTML = stages.map(([label, done, detail, failed]) => {
+    let cls = done ? "done" : "";
+    if (!done && !nowSeen && r.active) { cls = "now"; nowSeen = true; }
+    if (failed) cls = "failed";
+    return `<li class="${cls}"><i></i>${esc(label)}${detail ? ` <span class="muted">· ${esc(detail)}</span>` : ""}</li>`;
+  }).join("");
+
+  const docs = [];
+  const doc = (title, sub, body, open) =>
+    `<details class="doc"${open ? " open" : ""}><summary>${esc(title)}${sub ? ` <span class="muted">${esc(sub)}</span>` : ""}</summary><div class="body md">${body}</div></details>`;
+  if (d.report !== null) docs.push(doc("Data report", "what the data reporter found", d.report, false));
+  for (const s of d.skills) docs.push(doc(`Composed skill: ${s.name}`, "written by the skill maker for this run", s.html, false));
+  if (d.evolution && !d.skills.length)
+    docs.push(doc("Skill maker", d.evolution.status || "", `<p>${esc(d.evolution.error || "No skill was composed.")}</p>`, true));
+  if (d.plan !== null) docs.push(doc("Plan", "written by the planner before the analysis", d.plan, true));
+  if (nReq) docs.push(doc("Method requests", `${nReq} from the plan`, `<pre>${esc(JSON.stringify(d.requests, null, 2))}</pre>`, false));
+  if (m && m.status !== "no_request") {
+    const rows = (m.candidates || []).map((c) => `<tr class="${c.name === m.chosen ? "chosen" : ""}">
+      <td>${c.rank ?? ""}</td><td><b>${esc(c.name || "")}</b>${c.repo ? `<br><a href="${esc(c.url || `https://github.com/${c.repo}`)}" target="_blank" rel="noopener">${esc(c.repo)}</a>` : ""}</td>
+      <td class="num">${c.stars ?? ""}</td><td class="num">${c.last_push ? esc(String(c.last_push).slice(0, 10)) : ""}</td>
+      <td class="num">${c.fit_score ?? ""}</td><td>${esc(c.fit_notes || "")}</td></tr>`).join("");
+    const head = m.chosen
+      ? `<p><b>${esc(m.chosen)}</b> was chosen and ${m.install_status === "ok" || m.install_status === "installed" ? "installed" : `installation ended with status "${esc(m.install_status || m.status || "")}"`}.${m.import_name ? ` Import name: <code>${esc(m.import_name)}</code>.` : ""}</p>`
+      : `<p>No method was installed (status: ${esc(m.status || "")}${m.error ? `; ${esc(m.error)}` : ""}).</p>`;
+    const reason = m.choice_reason ? `<p>${esc(m.choice_reason)}</p>` : "";
+    const table = rows ? `<table class="cands"><thead><tr><th>Rank</th><th>Candidate</th><th>Stars</th><th>Last update</th><th>Fit (0-5)</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table>` : "";
+    docs.push(doc("Method discovery", m.model ? `agent on ${m.model}` : "", head + reason + table, true));
+  }
+  $("#disc-docs").innerHTML = docs.join("") ||
+    `<div class="empty-state"><div class="mini-map">${pixelHelix()}</div>Nothing written yet. The data reporter is reading the data.</div>`;
 }
 
 function renderFigures(view) {
@@ -540,7 +637,7 @@ function renderFiles(view) {
 
 function selectTab(name) {
   document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
-  for (const p of ["transcript", "figures", "files"]) $(`#p-${p}`).hidden = p !== name;
+  for (const p of ["transcript", "discovery", "figures", "files"]) $(`#p-${p}`).hidden = p !== name;
 }
 
 // ------------------------------------------------------------------ events
@@ -557,6 +654,8 @@ $("#new-form").addEventListener("submit", async (ev) => {
       body: JSON.stringify({
         data_path: $("#f-data").value, goal: $("#f-goal").value,
         model: $("#f-model").value,
+        discovery: $("#f-discovery").checked, evolve: $("#f-evolve").checked,
+        discovery_model: $("#f-discovery").checked ? $("#f-dmodel").value.trim() : "",
       }),
     });
     $("#f-goal").value = "";
@@ -580,6 +679,7 @@ $("#r-stop").addEventListener("click", async () => {
   tick(view);
 });
 
+$("#f-discovery").addEventListener("change", syncDiscoveryForm);
 $("#r-goal").addEventListener("click", () => $("#r-goal").classList.toggle("open"));
 $("#open-keys").addEventListener("click", () => openKeys());
 $("#close-keys").addEventListener("click", () => $("#keys-dialog").close());

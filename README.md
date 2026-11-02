@@ -52,6 +52,44 @@ contexture run sample.h5ad "Cluster the spots, name the spatial domains, and sav
 | `--output-dir` | `contexture-output/` in the current folder | where results are written |
 | `--model` | a model your saved key can use | any [LiteLLM](https://docs.litellm.ai/) model name |
 | `--max-turns` | `30` | the turn budget for the run |
+| `--discovery` | off | method discovery (below) |
+| `--evolve` | off | skill evolution (below; needs `--discovery`) |
+| `--discovery-model` | the same as `--model` | the model for the data reporter, the skill maker and the method discovery agent |
+
+## Method discovery and skill evolution
+
+Both are off by default. On the page they are the two switches under **Before the analysis**; in
+the terminal they are `--discovery` and `--evolve`. With them on, a run goes through these stages
+before the analysis starts, and the page's **Discovery** tab shows each one as it finishes:
+
+1. **Data report.** A data reporter reads the data and writes what it finds.
+2. **Skill maker** (skill evolution only). For an assay that no skill covers, it composes a new
+   skill from the existing skills and the platform transformations, tests the code on the data,
+   and adds the skill to this run's menu.
+3. **Plan.** A planner writes the analysis plan and names any step that needs a method that is
+   not installed.
+4. **Method discovery agent** (only when the plan named such a step). It searches Europe PMC and
+   GitHub, ranks the candidates, installs its choice and tests it. The analysis then starts with
+   the plan and the installed method.
+
+Where a discovered method is installed matters, because published methods pin library versions
+that often conflict with a current analysis stack. Run this once:
+
+```bash
+contexture setup-discovery
+```
+
+It needs conda (for example [Miniforge](https://conda-forge.org/download/)) and builds a small
+conda environment, `omics-discovery-min`, that holds only the agent framework. Each discovery run
+that installs a method then works in a fresh copy of it, deleted when the run ends. Without
+conda, a discovered method is installed beside the run inside the analysis environment's
+versions, which is fine for most methods; the page says which of the two will happen.
+
+A method discovery run takes longer than a plain one: the stages above have time budgets of
+6, 25 and 30 minutes, and the environment copy takes a few minutes. A `GITHUB_TOKEN` in the
+environment or in `.env` lifts GitHub's rate limit for the search. The paper's runs used
+`anthropic/claude-opus-5` for the data reporter, the skill maker and the method discovery agent;
+`--discovery-model` sets that.
 
 ## Keys and models
 

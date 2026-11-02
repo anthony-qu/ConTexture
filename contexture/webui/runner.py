@@ -29,10 +29,21 @@ def main(run_dir: str) -> int:
            "--output-dir", str(run),
            "--model", cfg["model"],
            "--max-turns", str(cfg["max_turns"])]
+    if cfg.get("discovery"):
+        cmd.append("--discovery")
+        if cfg.get("evolve"):
+            cmd.append("--evolve")
+        if cfg.get("discovery_model"):
+            cmd += ["--discovery-model", cfg["discovery_model"]]
     # The child must receive the interrupt this process ignores, so restore the default.
     proc = subprocess.Popen(cmd, cwd=run,
                             preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
     returncode = proc.wait()
+    if cfg.get("discovery"):
+        # The agent cannot delete the environment copy it ran in, and a hard stop would leave
+        # the input read-only; both are put right here, from outside the run.
+        from .. import discoveryenv
+        discoveryenv.cleanup(str(run))
     (run / "exit.json").write_text(json.dumps(
         {"returncode": returncode, "ended": time.time()}, indent=2))
     return returncode

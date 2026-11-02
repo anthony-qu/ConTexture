@@ -272,27 +272,31 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--discovery", action="store_true",
-        # Hidden: not available in the installed package yet (see the check below).
-        # Discovery mode describes the data, then finds, reads and installs a published
-        # method before the analysis, in a throwaway conda environment.
-        help=argparse.SUPPRESS,
+        help="Method discovery: before the analysis, a data reporter describes the data, a "
+             "planner writes the plan and names any step that needs a method not installed, "
+             "and a method discovery agent searches the literature and GitHub for one, installs "
+             "and tests it. With conda and `contexture setup-discovery`, the install goes into a "
+             "fresh environment copy for this run only. Off by default.",
     )
     parser.add_argument(
         "--evolve", action="store_true",
-        # Hidden, like --discovery, which it requires. Skill evolution composes a methodology
-        # guide for an assay no skill covers, from the existing skills and the transforms.
-        help=argparse.SUPPRESS,
+        help="Skill evolution (requires --discovery): before the analysis, a skill maker "
+             "composes a methodology guide for an assay no skill covers, from the existing "
+             "skills and the platform transformations, tests its code on the data, and adds it "
+             "to this run's skill menu. Off by default.",
+    )
+    parser.add_argument(
+        "--discovery-model", default=None, metavar="MODEL",
+        help="The model for the data reporter, the skill maker and the method discovery agent "
+             "(the planner always runs on --model). Default: the same as --model. The paper's "
+             "runs used anthropic/claude-opus-5 for these three. A DISCOVERY_REPORTER_MODEL, "
+             "SKILL_MAKER_MODEL or DISCOVERY_SCOUT_MODEL variable set in the environment wins "
+             "over the default, and this option wins over both.",
     )
     args = parser.parse_args()
     if args.evolve and not args.discovery:
         parser.error("--evolve requires --discovery (the skill maker runs inside the "
                      "discovery sequence)")
-    if args.discovery:
-        # Discovery restarts this file by path inside a separate conda environment (os.execv
-        # below), which cannot import an installed package. Until that is redesigned, say so
-        # plainly rather than fail halfway through.
-        parser.error("method discovery and skill evolution are not available in the installed "
-                     "package yet")
 
     # The CLI is the DEPLOYMENT entry point, so it opts in to the deployment default
     # explicitly. Measured arms never come through here — they go through
@@ -318,7 +322,18 @@ if __name__ == "__main__":
         import os
         import sys
 
-        from . import discovery                                      # noqa: E402
+        from . import discovery, discoveryenv                        # noqa: E402
+        # The three discovery agents' models. `discovery.py` reads these variables at run
+        # time and falls back to its recorded constant (claude-opus-5); in the installed
+        # package the fallback is instead the analysis model, so a user with one key can run
+        # the whole sequence. An explicit --discovery-model replaces all three.
+        for var in ("DISCOVERY_REPORTER_MODEL", "SKILL_MAKER_MODEL", "DISCOVERY_SCOUT_MODEL"):
+            if args.discovery_model:
+                os.environ[var] = args.discovery_model
+            else:
+                os.environ.setdefault(var, args.model)
+        if not discovery.in_discovery_env():
+            print("[DISCOVERY] " + discoveryenv.explain())   # also exports CONDA_EXE when found
         tools.set_output_dir(args.output_dir)
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
         tools.set_dialog_log(f"{args.output_dir}/dialog_log.txt")
@@ -327,17 +342,11 @@ if __name__ == "__main__":
             evolve=bool(cfg.get("evolve")), model=args.model)
         if env_python:
             print(f"[DISCOVERY] re-executing under {env_python}")
-            # os.execv does NOT flush Python's stdio buffers. With stdout redirected to
-            # a file it is block-buffered, so without this every line the parent printed
-            # — the data report, the clone, this one — is discarded when the process is
-            # replaced. Measured: the first CLI discovery run's log began mid-analysis
-            # with no record that the reporter or the clone had ever happened. The
-            # dialog log was unaffected (it opens and closes per append), which is
-            # exactly why the loss was easy to miss.
-            sys.stdout.flush()
-            sys.stderr.flush()
-            os.execv(env_python, [env_python, __file__, *sys.argv[1:]])
-            # os.execv does not return. bootstrap() short-circuits on the way back in.
+            # The measured agent restarts itself by file path from a checkout on sys.path. An
+            # installed package has neither, so the restart runs `python -m contexture.agent`
+            # in the clone with a copy of this package on PYTHONPATH (discoveryenv.exec_in).
+            discoveryenv.exec_in(env_python, args.output_dir, sys.argv[1:])
+            # exec_in does not return. bootstrap() short-circuits on the way back in.
 
         # Skill evolution: the maker ran before the switch (inside bootstrap) and wrote
         # to disk; read it back here, in whichever interpreter this now is, and expose

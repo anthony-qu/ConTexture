@@ -9,3 +9,4 @@ contexture-runs/
 contexture-output/
 build/
 dist/
+_test_discovery/
