@@ -11,7 +11,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
 
 // A honeycomb behind the page: hexagonal cells drawn as thin outlines in a colour a shade off
 // the page. Cells near the cursor fill with the logo's purple and blue and fade back over
-// about a second; with the cursor away, nothing moves and nothing is drawn.
+// about half a second; with the cursor away, nothing moves and nothing is drawn.
 function startLattice() {
   const canvas = $("#bg-lattice");
   if (!canvas) return;
@@ -19,7 +19,7 @@ function startLattice() {
   const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // Pointy-top hexagons: R is the centre-to-corner distance; cells are W wide, rows ROW apart,
   // and every other row is shifted by half a cell.
-  const R = 22, W_CELL = Math.sqrt(3) * R, ROW = 1.5 * R, REACH = 190, DECAY = 0.93;
+  const R = 22, W_CELL = Math.sqrt(3) * R, ROW = 1.5 * R, REACH = 190, DECAY = 0.86;   // about half a second
   let W = 0, H = 0, cols = 0, rows = 0, energy = new Float32Array(0);
   let mouse = null, running = false, colours = null, grid = null;
 

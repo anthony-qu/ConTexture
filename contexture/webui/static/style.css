@@ -13,6 +13,7 @@
   --accent: #7a5cd0;
   --accent-2: #6749c2;
   --accent-soft: rgba(122, 92, 208, 0.12);
+  --accent-light: #a894e4;
   --on-accent: #ffffff;
   --blue: #4fa3e0;
   --lavender: #cfc3f2;
@@ -63,6 +64,7 @@
   --accent: #9079dc;
   --accent-2: #a391e6;
   --accent-soft: rgba(144, 121, 220, 0.2);
+  --accent-light: #b6a8ee;
   --on-accent: #ffffff;
   --blue: #5fb0ea;
   --gradient: linear-gradient(120deg, #8a6fe0, #5fb0ea);
@@ -419,7 +421,7 @@ table.files a { text-decoration: none; }
    evolution together; the hover text is the only explanation). Turned on, the card itself
    changes: a purple-to-blue edge and the button's wording. */
 .form-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: -4px; }
-.form-title { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.form-title { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-light); }
 .switch { position: relative; display: inline-flex; align-items: center; gap: 9px; cursor: pointer;
           font-size: 13px; font-weight: 500; color: var(--ink-2); user-select: none; }
 .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
