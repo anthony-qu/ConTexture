@@ -203,7 +203,18 @@ input, textarea {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 input::placeholder, textarea::placeholder { color: var(--placeholder); }
-#f-data, #f-model { font-family: var(--mono); font-size: 13.5px; }
+select {
+  font: 14.5px/1.5 var(--sans); color: var(--ink); background: var(--input-bg);
+  border: 1px solid var(--line-2); border-radius: 9px; padding: 10px 38px 10px 13px; width: 100%;
+  appearance: none; -webkit-appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%237d7f9a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 16px;
+}
+select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+select optgroup { font-weight: 600; color: var(--muted); }
+select option { color: var(--ink); background: var(--surface); }
+#f-model-other { margin-top: 8px; font-family: var(--mono); font-size: 13.5px; }
+#f-data { font-family: var(--mono); font-size: 13.5px; }
 textarea { resize: vertical; min-height: 118px; }
 input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .form .btn-primary { height: 42px; font-size: 14.5px; margin-top: 2px; }

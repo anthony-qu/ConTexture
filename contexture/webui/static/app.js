@@ -337,13 +337,9 @@ function renderSection(s, view) {
 const app = { config: null, runs: [], view: null, listTimer: null };
 
 async function loadConfig(first) {
-  const previousDefault = app.config && app.config.default_model;
   app.config = await api("/api/config");
   const c = app.config;
-  // Follow the key: replace the model only while the user has not typed their own.
-  const model = $("#f-model");
-  if (!model.value || model.value === previousDefault) model.value = c.default_model;
-  $("#model-list").innerHTML = c.models.map((m) => `<option value="${esc(m)}">`).join("");
+  renderModelChoices(c);
   renderKeyNote();
   // The toggle's hover text ends with where a discovered method will be installed.
   if (c.discovery && c.discovery.explain) {
@@ -378,6 +374,34 @@ async function pickPath(kind) {
 }
 
 // The two switches: skill evolution runs inside method discovery, so it is offered only then.
+// The model dropdown: one group per provider whose key is set, from the server's hand-kept
+// table, plus "Another model" for a name typed by hand. The current choice survives a rebuild
+// when it is still offered; otherwise the first model of the first key is selected.
+const OTHER = "__other__";
+function renderModelChoices(c) {
+  const sel = $("#f-model"), groups = c.model_groups || [];
+  const sig = JSON.stringify(groups);
+  if (sig === app.modelSig) return;
+  app.modelSig = sig;
+  const current = sel.value;
+  sel.innerHTML = groups.map((g) => `<optgroup label="${esc(g.provider)}">${
+    g.models.map((m) => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join("")}</optgroup>`).join("") +
+    `<optgroup label="Other"><option value="${OTHER}">Another model (type its name)</option></optgroup>`;
+  const offered = [...sel.options].some((o) => o.value === current);
+  sel.value = offered ? current : (groups.length ? c.default_model : OTHER);
+  if (!offered && groups.length) $("#f-model-other").value = "";
+  syncModelOther();
+}
+function syncModelOther() {
+  const other = $("#f-model").value === OTHER;
+  $("#f-model-other").hidden = !other;
+  $("#f-model-other").required = other;
+}
+function chosenModel() {
+  const v = $("#f-model").value;
+  return v === OTHER ? $("#f-model-other").value.trim() : v;
+}
+
 function renderKeyNote() {
   const c = app.config, has = c.keys.length > 0, note = $("#key-note");
   note.hidden = has;
@@ -711,6 +735,7 @@ function syncDiscovery() {
   $("#f-start-label").textContent = on ? "Start discovery" : "Start analysis";
 }
 $("#f-discovery").addEventListener("change", syncDiscovery);
+$("#f-model").addEventListener("change", syncModelOther);
 
 // Light or dark: the choice is kept in this browser; without one the system's setting is used
 // (set before the first paint by the small script in the page head).
@@ -731,7 +756,7 @@ $("#new-form").addEventListener("submit", async (ev) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         data_path: $("#f-data").value, goal: $("#f-goal").value,
-        model: $("#f-model").value,
+        model: chosenModel(),
         // One switch turns method discovery and skill evolution on together; the discovery
         // agents use the analysis model (the terminal's --discovery-model can set another).
         discovery: $("#f-discovery").checked, evolve: $("#f-discovery").checked,

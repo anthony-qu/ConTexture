@@ -95,6 +95,11 @@ environment or in `.env` lifts GitHub's rate limit for the search. The paper's r
 
 ## Keys and models
 
+The page's **Model** list offers the models of every provider whose key is set, from a table kept
+by hand in `contexture/keys.py` (`MODELS`); edit that table when a provider adds or retires a
+model. "Another model" at the end of the list takes any
+[LiteLLM](https://docs.litellm.ai/docs/providers) model name typed in.
+
 Add, replace or remove a key from the **Model keys** button in the page's sidebar, or with
 `contexture key` in the terminal. Saved keys live in `~/.config/contexture/keys.env`. A key set
 in your shell environment (for example `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`

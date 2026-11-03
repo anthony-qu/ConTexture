@@ -62,14 +62,6 @@ WEB = ROOT / "webui"
 DEFAULT_MODEL = re.search(r'^DEFAULT_MODEL = "([^"]+)"', (ROOT / "agent.py").read_text(),
                           re.M).group(1)
 DEFAULT_TURNS = 30                   # agent.py's own --max-turns default
-SUGGESTED_MODELS = [
-    DEFAULT_MODEL,
-    "anthropic/claude-opus-5",
-    "deepseek/deepseek-v4-flash",
-    "deepseek/deepseek-v4-pro",
-    "openai/gpt-5.6-sol",
-    "gemini/gemini-2.5-pro",
-]
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".svg", ".gif", ".webp"}
 BOOKKEEPING = {"run.json", "exit.json", "stop.json"}
 RUN_ID = re.compile(r"^\d{8}-\d{6}-[a-z0-9-]{0,48}$")
@@ -217,7 +209,7 @@ def _config(request: Request):
     running = sum(1 for r in _runs() if _status(r)["active"])
     default = keys.default_model()       # a model the user's own key can actually call
     return JSONResponse({"default_model": default, "default_turns": DEFAULT_TURNS,
-                         "models": list(dict.fromkeys([default, *SUGGESTED_MODELS])),
+                         "model_groups": keys.model_groups(),
                          "keys": providers,
                          "runs_dir": str(Settings.runs_dir),
                          "max_concurrent": Settings.max_concurrent, "running": running,

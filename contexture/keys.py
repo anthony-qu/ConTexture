@@ -22,12 +22,41 @@ from pathlib import Path
 
 from dotenv import dotenv_values, load_dotenv
 
-# (what the user is shown, the variable LiteLLM reads, a sensible default model for that key)
+# ---------------------------------------------------------------------------------------------
+# THE MODELS THE PAGE OFFERS, BY KEY. Edit this table by hand when a provider adds or retires a
+# model; nothing else needs to change. For each key: the models in the order the page lists
+# them, as (the LiteLLM model name, the label shown). The FIRST model of a key is the default
+# when that key is the first one found. Last checked 2026-11-02.
+# ---------------------------------------------------------------------------------------------
+MODELS: dict[str, list[tuple[str, str]]] = {
+    "ANTHROPIC_API_KEY": [
+        ("anthropic/claude-sonnet-4-6", "Claude Sonnet 4.6"),
+        ("anthropic/claude-opus-5", "Claude Opus 5"),
+        ("anthropic/claude-haiku-4-5", "Claude Haiku 4.5"),
+        ("anthropic/claude-sonnet-4-5", "Claude Sonnet 4.5"),
+    ],
+    "OPENAI_API_KEY": [
+        ("openai/gpt-5.6-sol", "GPT-5.6 Sol"),
+        ("openai/gpt-5.6-luna", "GPT-5.6 Luna"),
+        ("openai/gpt-5.2", "GPT-5.2"),
+        ("openai/gpt-5.1", "GPT-5.1"),
+    ],
+    "DEEPSEEK_API_KEY": [
+        ("deepseek/deepseek-v4-flash", "DeepSeek V4 Flash"),
+        ("deepseek/deepseek-v4-pro", "DeepSeek V4 Pro"),
+    ],
+    "GEMINI_API_KEY": [
+        ("gemini/gemini-2.5-pro", "Gemini 2.5 Pro"),
+        ("gemini/gemini-2.5-flash", "Gemini 2.5 Flash"),
+    ],
+}
+
+# (what the user is shown, the variable LiteLLM reads, the default model for that key)
 PROVIDERS = [
-    ("Anthropic (Claude)", "ANTHROPIC_API_KEY", "anthropic/claude-sonnet-4-6"),
-    ("OpenAI", "OPENAI_API_KEY", "openai/gpt-5.6-sol"),
-    ("DeepSeek", "DEEPSEEK_API_KEY", "deepseek/deepseek-v4-flash"),
-    ("Google Gemini", "GEMINI_API_KEY", "gemini/gemini-2.5-pro"),
+    ("Anthropic (Claude)", "ANTHROPIC_API_KEY", MODELS["ANTHROPIC_API_KEY"][0][0]),
+    ("OpenAI", "OPENAI_API_KEY", MODELS["OPENAI_API_KEY"][0][0]),
+    ("DeepSeek", "DEEPSEEK_API_KEY", MODELS["DEEPSEEK_API_KEY"][0][0]),
+    ("Google Gemini", "GEMINI_API_KEY", MODELS["GEMINI_API_KEY"][0][0]),
 ]
 KEY_NAME = re.compile(r"^[A-Z][A-Z0-9_]*_API_KEY$")
 
@@ -65,6 +94,17 @@ def default_model() -> str:
         if os.environ.get(var, "").strip():
             return model
     return PROVIDERS[0][2]
+
+
+def model_groups() -> list[dict]:
+    """The models the page can offer right now: one group per provider whose key is set, in
+    PROVIDERS order, from the hand-maintained MODELS table."""
+    groups = []
+    for label, var, _ in PROVIDERS:
+        if os.environ.get(var, "").strip() and MODELS.get(var):
+            groups.append({"provider": label, "var": var,
+                           "models": [{"id": m, "label": lab} for m, lab in MODELS[var]]})
+    return groups
 
 
 def status() -> list[dict]:

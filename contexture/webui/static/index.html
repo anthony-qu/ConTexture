@@ -76,8 +76,9 @@
           </label>
           <label class="field">
             <span class="label">Model</span>
-            <input id="f-model" name="model" type="text" list="model-list" spellcheck="false">
-            <datalist id="model-list"></datalist>
+            <select id="f-model" name="model"></select>
+            <input id="f-model-other" name="model_other" type="text" spellcheck="false" hidden
+                   placeholder="the model's LiteLLM name, for example mistral/mistral-large-latest">
           </label>
           <div id="key-note" class="key-note" hidden></div>
           <div id="form-error" class="form-error" role="alert" hidden></div>
