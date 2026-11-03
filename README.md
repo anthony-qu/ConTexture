@@ -110,4 +110,7 @@ uv sync
 uv run contexture
 ```
 
-Dependencies are pinned to the versions ConTexture was tested with; change a pin deliberately.
+Every package, direct or indirect, is pinned in `pyproject.toml` to the version ConTexture was
+tested with, because `uv tool install` resolves afresh and ignores `uv.lock`. The indirect pins
+are generated: after changing a direct pin, run `uv lock`, then `python pin_from_lock.py`, then
+`uv lock` again, and test.
