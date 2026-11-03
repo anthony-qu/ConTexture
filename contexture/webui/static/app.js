@@ -138,7 +138,27 @@ function startLattice() {
 
 // ------------------------------------------------------------------ helpers
 
+// A session saved as one HTML file carries its data here; the page then reads from it
+// instead of asking a server, and nothing can be started, stopped or deleted.
+const STATIC = window.CONTEXTURE_STATIC || null;
+
+function staticApi(path, options) {
+  if ((options.method || "GET") !== "GET") throw new Error("This is a saved copy of a session; nothing can be changed here.");
+  const id = encodeURIComponent(STATIC.run.id), base = `/api/runs/${id}`;
+  if (path === "/api/config") return { keys: [], model_groups: [], default_model: "", can_pick: false, discovery: null };
+  if (path === "/api/keys") return { file: "", keys: [] };
+  if (path === "/api/runs") return { runs: [STATIC.run] };
+  if (path === base) return STATIC.run;
+  if (path.startsWith(`${base}/log`)) {
+    const since = +(new URL(path, location.href).searchParams.get("since") || 0);
+    return { total: STATIC.log.total, sections: since ? STATIC.log.sections.slice(since) : STATIC.log.sections };
+  }
+  if (path === `${base}/discovery`) return STATIC.discovery;
+  throw new Error("No such run.");
+}
+
 async function api(path, options = {}) {
+  if (STATIC) return staticApi(path, options);
   const res = await fetch(path, { credentials: "same-origin", ...options });
   if (res.status === 403) {
     document.body.innerHTML = "<p style='font-family:system-ui;margin:15vh auto;max-width:32rem'>" +
@@ -150,7 +170,7 @@ async function api(path, options = {}) {
   return body;
 }
 
-const fileUrl = (id, path, download) =>
+const fileUrl = (id, path, download) => STATIC ? (STATIC.files[path] || "") :
   `/api/runs/${encodeURIComponent(id)}/files/${path.split("/").map(encodeURIComponent).join("/")}` +
   (download ? "?download=1" : "");
 
@@ -358,6 +378,7 @@ const app = { config: null, runs: [], view: null, listTimer: null };
 async function loadConfig(first) {
   app.config = await api("/api/config");
   const c = app.config;
+  if (STATIC) { $("#pick-btns").hidden = true; return; }
   renderModelChoices(c);
   renderKeyNote();
   // The toggle's hover text ends with where a discovered method will be installed.
@@ -544,7 +565,9 @@ async function refreshList() {
         <span class="dot s-${r.status}"></span>
         <span class="rl-goal">${esc(r.goal.split("\n")[0])}</span>
         <span class="rl-meta">${esc(STATUS_TEXT[r.status] || r.status)} · ${esc(ago(r.created))} · ${esc(r.model.split("/").pop())}</span>
-      </a><button class="rl-del" type="button" title="Delete this session and its folder" aria-label="Delete this session">
+      </a>${r.active ? "" : `<a class="rl-dl" href="/api/runs/${esc(r.id)}/export" download title="Save this session as one HTML file" aria-label="Save this session as an HTML file">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v8M4.8 7.3L8 10.5l3.2-3.2M3 12.5h10"/></svg>
+      </a>`}<button class="rl-del" type="button" title="Delete this session and its folder" aria-label="Delete this session">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5M6.7 7v4M9.3 7v4"/></svg>
       </button></li>`).join("") : `<li class="empty">No sessions yet.</li>`;
   } catch (e) { /* keep the last list */ }
@@ -573,6 +596,7 @@ function show(name) {
 }
 
 function route() {
+  if (STATIC && !location.hash.startsWith("#/run/")) { location.hash = `#/run/${STATIC.run.id}`; return; }
   const m = location.hash.match(/^#\/run\/([\w-]+)$/);
   if (m) openRun(m[1]);
   else { closeRun(); show("new"); $("#f-data").focus(); }
@@ -598,6 +622,7 @@ function openRun(id) {
   $("#console").hidden = true;
   $("#r-goal").classList.remove("open");
   $("#r-log").href = fileUrl(id, "dialog_log.txt");
+  $("#r-log").hidden = STATIC && !fileUrl(id, "dialog_log.txt");
   selectTab("transcript");
   show("run");
   view.clock = setInterval(() => renderMeta(view), 1000);
@@ -675,6 +700,8 @@ function renderHeader(view) {
   chip.lastElementChild.textContent = STATUS_TEXT[r.status] || r.status;
   if ($("#r-goal").dataset.id !== view.id) { $("#r-goal").textContent = r.goal; $("#r-goal").dataset.id = view.id; }
   $("#r-stop").hidden = r.status !== "running";
+  $("#r-export").hidden = r.active || !!STATIC;
+  $("#r-export").href = `/api/runs/${encodeURIComponent(view.id)}/export`;
   $("#r-progress").hidden = !r.active;
   $("#r-note").hidden = !r.note;
   $("#r-note").textContent = r.note || "";
@@ -911,7 +938,7 @@ function renderFigures(view) {
   view.figSig = sig;
   $("#gallery").innerHTML = figs.length ? figs.slice().reverse().map((f) => `
     <a class="fig" href="${fileUrl(view.id, f.path)}" target="_blank" rel="noopener">
-      <div class="img"><img loading="lazy" src="${fileUrl(view.id, f.path)}?v=${Math.round(f.mtime)}" alt="${esc(f.path)}"></div>
+      <div class="img"><img loading="lazy" src="${fileUrl(view.id, f.path)}${STATIC ? "" : `?v=${Math.round(f.mtime)}`}" alt="${esc(f.path)}"></div>
       <div class="cap" title="${esc(f.path)}">${esc(f.path)}</div></a>`).join("")
     : `<div class="empty-state"><div class="mini-logo"><img src="/static/icon.svg" alt=""></div>No figures yet.</div>`;
 }
@@ -927,9 +954,9 @@ function renderFiles(view) {
   const sorted = files.slice().sort((a, b) => (isResult(b.path) - isResult(a.path)) || a.path.localeCompare(b.path));
   $("#file-rows").innerHTML = sorted.map((f) => `
     <tr class="${isResult(f.path) ? "result" : ""}">
-      <td class="name"><a href="${fileUrl(view.id, f.path)}" target="_blank" rel="noopener">${esc(f.path)}</a></td>
+      <td class="name">${fileUrl(view.id, f.path) ? `<a href="${fileUrl(view.id, f.path)}" target="_blank" rel="noopener">${esc(f.path)}</a>` : esc(f.path)}</td>
       <td class="num">${size(f.size)}</td><td class="num">${esc(ago(f.mtime))}</td>
-      <td class="num"><a href="${fileUrl(view.id, f.path, true)}">Download</a></td></tr>`).join("");
+      <td class="num">${fileUrl(view.id, f.path) ? `<a href="${fileUrl(view.id, f.path, true)}" download="${esc(f.path.split("/").pop())}">Download</a>` : `<span class="muted">not in this copy</span>`}</td></tr>`).join("");
 }
 
 function selectTab(name) {
@@ -1039,6 +1066,10 @@ window.addEventListener("hashchange", route);
 // ------------------------------------------------------------------ start
 
 startLattice();
+if (STATIC) {
+  document.body.classList.add("static");
+  location.hash = `#/run/${STATIC.run.id}`;
+}
 loadConfig(true).catch(() => {});
 route();
 app.listTimer = setInterval(refreshList, 4000);

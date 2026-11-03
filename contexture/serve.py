@@ -28,10 +28,12 @@ How it is built, and why:
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import re
 import secrets
+import mimetypes
 import shutil
 import signal
 import socket
@@ -367,10 +369,7 @@ async def _start(request: Request):
     return JSONResponse({"id": rid})
 
 
-def _detail(request: Request):
-    run = _run_dir(request.path_params["rid"])
-    if run is None:
-        return JSONResponse({"error": "No such run."}, status_code=404)
+def _detail_data(run: Path) -> dict:
     info = _status(run)
     files = [p for p in _walk(run) if p.name not in BOOKKEEPING]
     info["usage"] = _usage(run)
@@ -382,17 +381,17 @@ def _detail(request: Request):
         tail = (run / "console.txt").read_text(errors="replace")[-4000:] \
             if (run / "console.txt").exists() else ""
         info["console_tail"] = tail
-    return JSONResponse(info)
+    return info
 
 
-def _log(request: Request):
+def _detail(request: Request):
     run = _run_dir(request.path_params["rid"])
     if run is None:
         return JSONResponse({"error": "No such run."}, status_code=404)
-    try:
-        since = max(0, int(request.query_params.get("since", "0")))
-    except ValueError:
-        since = 0
+    return JSONResponse(_detail_data(run))
+
+
+def _log_data(run: Path, since: int = 0) -> dict:
     sections = transcript.read(run / "dialog_log.txt")
     out = []
     for s in sections[since:]:
@@ -406,7 +405,18 @@ def _log(request: Request):
                 "dialog_log.txt ...]\n\n" + text[-5_000:]
             item["shortened"] = True
         out.append(item)
-    return JSONResponse({"total": len(sections), "sections": out})
+    return {"total": len(sections), "sections": out}
+
+
+def _log(request: Request):
+    run = _run_dir(request.path_params["rid"])
+    if run is None:
+        return JSONResponse({"error": "No such run."}, status_code=404)
+    try:
+        since = max(0, int(request.query_params.get("since", "0")))
+    except ValueError:
+        since = 0
+    return JSONResponse(_log_data(run, since))
 
 
 def _read_text(path: Path, limit: int = 200_000) -> str | None:
@@ -416,16 +426,13 @@ def _read_text(path: Path, limit: int = 200_000) -> str | None:
         return None
 
 
-def _discovery(request: Request):
+def _discovery_data(run: Path) -> dict:
     """The documents a method discovery run writes before the analysis, rendered for the page.
 
     Everything comes from files in the run's `discovery/` folder, so a reopened page shows
     the same as a live one. Transcripts and token usage inside the JSON reports are not sent;
     the page has the transcript, and the reports can be downloaded from the Files tab.
     """
-    run = _run_dir(request.path_params["rid"])
-    if run is None:
-        return JSONResponse({"error": "No such run."}, status_code=404)
     d = run / "discovery"
     out: dict = {"report": None, "skills": [], "evolution": None, "plan": None,
                  "requests": None, "method": None}
@@ -463,7 +470,66 @@ def _discovery(request: Request):
                          "install_status": install.get("status"),
                          "model": rep.get("scout_model"), "elapsed_sec": rep.get("elapsed_sec"),
                          "candidates": cands}
-    return JSONResponse(out)
+    return out
+
+
+def _discovery(request: Request):
+    run = _run_dir(request.path_params["rid"])
+    if run is None:
+        return JSONResponse({"error": "No such run."}, status_code=404)
+    return JSONResponse(_discovery_data(run))
+
+
+# ---- saving a session as one HTML file
+
+EXPORT_TEXT_SUFFIXES = {".md", ".json", ".txt", ".csv", ".tsv", ".log", ".py", ".yaml", ".yml"}
+EXPORT_TEXT_MAX = 3_000_000           # bytes; larger text files are listed but not embedded
+
+
+def _data_uri(path: Path, mime: str | None = None) -> str:
+    mime = mime or mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode("ascii")
+
+
+def _export(request: Request):
+    """One self-contained HTML file of a finished session: the page, its stylesheet and
+    script inline, the session's status, transcript and discovery documents embedded as data,
+    the figures and the small text files embedded as data URIs. It opens in any browser with
+    no server; the script sees `window.CONTEXTURE_STATIC` and reads from it instead.
+    """
+    run = _run_dir(request.path_params["rid"])
+    if run is None:
+        return JSONResponse({"error": "No such session."}, status_code=404)
+    info = _detail_data(run)
+    if info["active"]:
+        return JSONResponse({"error": "This session is still running. It can be saved once it "
+                                      "has finished or been stopped."}, status_code=409)
+    embedded: dict[str, str] = {}
+    for f in info["figures"]:
+        embedded[f["path"]] = _data_uri(run / f["path"])
+    for f in info["files"]:
+        p = run / f["path"]
+        if f["path"] not in embedded and p.suffix.lower() in EXPORT_TEXT_SUFFIXES \
+                and f["size"] <= EXPORT_TEXT_MAX:
+            embedded[f["path"]] = _data_uri(p, "text/plain;charset=utf-8")
+    payload = {"run": info, "log": _log_data(run), "discovery": _discovery_data(run),
+               "files": embedded, "exported": time.time()}
+    static = WEB / "static"
+    page = (static / "index.html").read_text(encoding="utf-8")
+    page = page.replace('<link rel="stylesheet" href="/static/style.css">',
+                        "<style>\n" + (static / "style.css").read_text(encoding="utf-8") + "\n</style>")
+    data = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
+    page = page.replace('<script src="/static/app.js"></script>',
+                        "<script>window.CONTEXTURE_STATIC = " + data + ";</script>\n<script>\n"
+                        + (static / "app.js").read_text(encoding="utf-8") + "\n</script>")
+    # The logo and icon, wherever the page or its script names them.
+    for name in ("logo.svg", "logo_dark.svg", "icon.svg"):
+        page = page.replace(f"/static/{name}", _data_uri(static / name, "image/svg+xml"))
+    title = (info["goal"].split("\n")[0][:80] or run.name).replace("<", "").replace("&", "&amp;")
+    page = page.replace("<title>ConTexture</title>", f"<title>ConTexture: {title}</title>", 1)
+    return HTMLResponse(page, headers={
+        "Content-Disposition": f'attachment; filename="{run.name}.html"',
+        "Cache-Control": "no-store"})
 
 
 def _stop(request: Request):
@@ -562,6 +628,7 @@ def build_app() -> Starlette:
         Route("/api/runs/{rid}", _delete, methods=["DELETE"]),
         Route("/api/runs/{rid}/log", _log),
         Route("/api/runs/{rid}/discovery", _discovery),
+        Route("/api/runs/{rid}/export", _export),
         Route("/api/runs/{rid}/stop", _stop, methods=["POST"]),
         Route("/api/runs/{rid}/files/{path:path}", _file),
         Mount("/static", StaticFiles(directory=WEB / "static")),

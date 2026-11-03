@@ -26,8 +26,10 @@ contexture
 
 Pick a data file (`.h5ad` or `.h5mu`, or a folder of them), describe the goal, choose a model,
 and start. The first time, the page asks for an API key from a model provider; it is saved on
-your computer. **Discovery mode** turns on method discovery and skill evolution. Each run gets
-its own folder in `contexture-runs/`, inside the folder you started `contexture` from.
+your computer. **Discovery mode** turns on method discovery and skill evolution. Each session
+gets its own folder in `contexture-runs/`, inside the folder you started `contexture` from.
+A finished session can be saved with **Save page** as one HTML file that opens in any browser,
+with the Workbench, the figures and the text files inside.
 
 ## Or run it in the terminal
 

@@ -172,7 +172,19 @@ code { font-family: var(--mono); font-size: 0.88em; }
 .run-list .rl-del svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .run-list li:hover .rl-del, .run-list .rl-del:focus-visible { opacity: 1; }
 .run-list .rl-del:hover { background: var(--danger-soft); color: var(--danger); }
-.run-list li:hover .rl-goal, .run-list li:hover .rl-meta { padding-right: 26px; }
+.run-list li:hover .rl-goal, .run-list li:hover .rl-meta { padding-right: 54px; }
+.run-list .rl-dl {
+  position: absolute; right: 34px; top: 50%; transform: translateY(-50%);
+  width: 26px; height: 26px; border-radius: 7px; color: var(--muted); text-decoration: none;
+  display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.12s;
+}
+.run-list .rl-dl svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.run-list li:hover .rl-dl, .run-list .rl-dl:focus-visible { opacity: 1; }
+.run-list .rl-dl:hover { background: var(--accent-soft); color: var(--accent); }
+#r-export svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+/* A session saved as one file: no form, no keys, nothing to start, stop or delete. */
+body.static .sidebar > a.btn, body.static #open-keys, body.static .rl-del, body.static .rl-dl,
+body.static #r-stop, body.static #r-export, body.static #to-latest { display: none !important; }
 .side-foot { padding: 8px 0 0; display: flex; gap: 8px; align-items: flex-start; }
 .side-foot .keys-btn { flex: 1; margin-bottom: 0; }
 .theme-btn {
