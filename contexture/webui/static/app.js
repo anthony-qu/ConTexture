@@ -22,8 +22,8 @@ function startLattice() {
   // Pointy-top hexagons: R is the centre-to-corner distance; cells are W wide, rows ROW apart,
   // and every other row is shifted by half a cell.
   const R = 22, W_CELL = Math.sqrt(3) * R, ROW = 1.5 * R;
-  const PATCHES = 4, BREATH = 9000, BREATHS = 2, GAP = [1500, 5000];   // milliseconds
-  let W = 0, H = 0, cols = 0, rows = 0, colours = null, grid = null, patches = [], last = 0;
+  const PATCHES = 3, BREATH = 9000, BREATHS = 2, GAP = [1500, 5000];   // milliseconds
+  let W = 0, H = 0, cols = 0, rows = 0, colours = null, grid = null, patches = [];
 
   // The page's colours, re-read whenever the theme changes.
   function palette() {
@@ -64,14 +64,14 @@ function startLattice() {
     g.strokeStyle = `rgb(${r},${gg},${b})`; g.lineWidth = 1; g.stroke(path);
   }
 
-  // A patch: a seed cell and 6-14 neighbours grown from it, each weighted by its distance
+  // A patch: a seed cell and 16-34 neighbours grown from it, each weighted by its distance
   // from the seed; born at `born`, it lives BREATHS breaths and is then replaced.
   function makePatch(now) {
     const si = Math.floor(Math.random() * cols), sj = Math.floor(Math.random() * rows);
     const [sx, sy] = centre(si, sj);
     const cells = new Map([[`${si},${sj}`, [si, sj]]]);
     const frontier = [[si, sj]];
-    const size = 6 + Math.floor(Math.random() * 9);
+    const size = 16 + Math.floor(Math.random() * 19);
     for (let n = 0; n < size; n++) {
       const [a, b] = frontier[Math.floor(Math.random() * frontier.length)];
       const free = neighbours(a, b).filter(([x, y]) => !cells.has(`${x},${y}`));
@@ -81,7 +81,7 @@ function startLattice() {
     }
     const weighted = [...cells.values()].map(([i, j]) => {
       const [x, y] = centre(i, j);
-      return { x, y, w: Math.max(0.35, 1 - Math.hypot(x - sx, y - sy) / (R * 4.5)) };
+      return { x, y, w: Math.max(0.3, 1 - Math.hypot(x - sx, y - sy) / (R * 8)) };
     });
     const born = now + GAP[0] + Math.random() * (GAP[1] - GAP[0]);
     return { cells: weighted, born, dies: born + BREATH * BREATHS };
@@ -124,7 +124,7 @@ function startLattice() {
   }
 
   function frame(now) {
-    if (now - last > 50) { draw(now); last = now; }     // twenty frames a second is plenty
+    draw(now);                     // every display frame, so the breathing has no visible steps
     requestAnimationFrame(frame);
   }
 
