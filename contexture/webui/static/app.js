@@ -7,129 +7,6 @@ const $$ = (sel) => [...document.querySelectorAll(sel)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-// ------------------------------------------------------------------ decoration
-
-// A small pixel-art double helix: two strands crossing, with base-pair rungs between them
-// in the four base colours (A-T and C-G pairs). Drawn as 1x1 squares on a grid, so it stays
-// sharp at whole-number sizes.
-function pixelHelix(cols = 9, rows = 13) {
-  const c = (cols - 1) / 2, amp = c - 0.6, period = 12;
-  const pairs = [["var(--A)", "var(--T)"], ["var(--C)", "var(--G)"], ["var(--T)", "var(--A)"], ["var(--G)", "var(--C)"]];
-  const px = (x, y, col) => `<rect x="${x}" y="${y}" width="1" height="1" style="fill:${col}"/>`;
-  let rungs = "", back = "", front = "";
-  for (let y = 0; y < rows; y++) {
-    const t = (2 * Math.PI * y) / period;
-    const x1 = Math.round(c + amp * Math.sin(t)), x2 = Math.round(c - amp * Math.sin(t));
-    const firstInFront = Math.cos(t) >= 0;
-    if (y % 2 === 1 && Math.abs(x1 - x2) >= 3) {
-      const [a, b] = pairs[(y >> 1) % 4], lo = Math.min(x1, x2), hi = Math.max(x1, x2), mid = (lo + hi) / 2;
-      for (let x = lo + 1; x < hi; x++) rungs += px(x, y, x < mid ? a : b);
-    }
-    const s1 = px(x1, y, "var(--accent)"), s2 = px(x2, y, "#cfcfcf");
-    if (firstInFront) { back += s2; front += s1; } else { back += s1; front += s2; }
-  }
-  return `<svg viewBox="0 0 ${cols} ${rows}" shape-rendering="crispEdges" aria-hidden="true">${rungs}${back}${front}</svg>`;
-}
-
-// The name in the same pixel style: a 7-row bitmap font, only the letters "ConTexture" needs.
-// "Con" is drawn in the text colour and "Texture" in the accent. Every other text on the page
-// stays a normal font.
-const PIXEL_GLYPHS = {
-  C: [".###.", "#...#", "#....", "#....", "#....", "#...#", ".###."],
-  T: ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."],
-  o: [".....", ".....", ".###.", "#...#", "#...#", "#...#", ".###."],
-  n: [".....", ".....", "#.##.", "##..#", "#...#", "#...#", "#...#"],
-  e: [".....", ".....", ".###.", "#...#", "#####", "#....", ".###."],
-  x: [".....", ".....", "#...#", ".#.#.", "..#..", ".#.#.", "#...#"],
-  t: ["....", ".#..", "####", ".#..", ".#..", ".#..", "..##"],
-  u: [".....", ".....", "#...#", "#...#", "#...#", "#..##", ".##.#"],
-  r: ["....", "....", "#.##", "##..", "#...", "#...", "#..."],
-};
-function pixelWordmark(parts = [["Con", "var(--ink)"], ["Texture", "var(--accent)"]]) {
-  let x = 0, rects = "";
-  for (const [text, col] of parts) {
-    for (const ch of text) {
-      const g = PIXEL_GLYPHS[ch];
-      g.forEach((row, y) => [...row].forEach((on, dx) => {
-        if (on === "#") rects += `<rect x="${x + dx}" y="${y}" width="1" height="1" style="fill:${col}"/>`;
-      }));
-      x += g[0].length + 1;
-    }
-  }
-  const w = x - 1;
-  return `<svg viewBox="0 0 ${w} 7" width="${w * 3}" height="21" shape-rendering="crispEdges" aria-hidden="true">${rects}</svg>`;
-}
-
-// The browser tab gets the same icon. CSS variables do not reach a data URL, so resolve them.
-function setFavicon() {
-  const css = getComputedStyle(document.documentElement);
-  const svg = pixelHelix().replace(/var\((--[\w-]+)\)/g, (_, v) => css.getPropertyValue(v).trim())
-    .replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
-  const link = document.createElement("link");
-  link.rel = "icon";
-  link.href = "data:image/svg+xml," + encodeURIComponent(svg);
-  document.head.appendChild(link);
-}
-
-// The background: one large double helix, turning slowly about its own axis, drawn in square
-// pixels only a shade lighter than the page. The strand nearer the viewer is drawn lighter.
-function startBackgroundHelix() {
-  const canvas = $("#bg-helix"), ctx = canvas.getContext("2d");
-  const css = getComputedStyle(document.documentElement);
-  const grey = (v) => parseInt(css.getPropertyValue(v).trim().slice(1, 3), 16);
-  const backG = grey("--helix-back"), frontG = grey("--helix-front"), rungG = grey("--helix-rung");
-  const P = 8;                                   // one pixel of the drawing, in CSS pixels
-  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let W = 0, H = 0, dpr = 1, last = 0;
-
-  function resize() {
-    dpr = window.devicePixelRatio || 1;
-    W = window.innerWidth; H = window.innerHeight;
-    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.imageSmoothingEnabled = false;
-  }
-  const cell = (gx, gy, g) => { ctx.fillStyle = `rgb(${g},${g},${g})`; ctx.fillRect(gx * P, gy * P, P, P); };
-
-  function draw(time) {
-    ctx.clearRect(0, 0, W, H);
-    const cy = Math.round(H * 0.5 / P), amp = Math.min(H * 0.2, 160) / P;
-    const k = (2 * Math.PI * P) / 460, phase = (time / 9000) * 2 * Math.PI;
-    const cols = Math.ceil(W / P) + 1;
-    const strands = [[], []];
-    for (let gx = 0; gx < cols; gx++) {
-      const t = gx * k + phase, y = amp * Math.sin(t), z = Math.cos(t);
-      strands[0].push({ y: Math.round(cy + y), z });
-      strands[1].push({ y: Math.round(cy - y), z: -z });
-      if (gx % 4 === 0) {                        // base-pair rungs, faintest of all
-        const a = Math.round(cy + y), b = Math.round(cy - y);
-        for (let gy = Math.min(a, b) + 2; gy < Math.max(a, b) - 1; gy++) cell(gx, gy, rungG);  // a gap at each strand
-      }
-    }
-    // Back halves first, front halves last, so the nearer strand crosses over the farther.
-    for (const pass of [false, true]) {
-      for (const s of strands) {
-        for (let gx = 0; gx < s.length; gx++) {
-          const p = s[gx];
-          if ((p.z >= 0) !== pass) continue;
-          const g = Math.round(backG + (frontG - backG) * (p.z + 1) / 2);
-          // Fill from the previous column's height to this one, so a steep stretch stays joined.
-          const prev = gx > 0 ? s[gx - 1].y : p.y;
-          for (let gy = Math.min(prev, p.y); gy <= Math.max(prev, p.y); gy++) cell(gx, gy, g);
-        }
-      }
-    }
-  }
-
-  function frame(time) {
-    if (time - last > 40) { draw(time); last = time; }   // about 25 frames a second is plenty
-    requestAnimationFrame(frame);
-  }
-  resize();
-  window.addEventListener("resize", () => { resize(); draw(last); });
-  if (still) draw(0); else requestAnimationFrame(frame);
-}
-
 // ------------------------------------------------------------------ helpers
 
 async function api(path, options = {}) {
@@ -564,7 +441,7 @@ function renderMeta(view) {
     `<span>${esc(duration(end - r.created))}</span>`,
     `<span>${u.model_calls || 0} model calls · ${tokens(u.input_tokens || 0)} tokens in · ${tokens(u.output_tokens || 0)} out</span>`,
     `<span>turn budget ${esc(r.max_turns)}</span>`,
-    r.discovery ? `<span>method discovery${r.evolve ? " + skill evolution" : ""}${
+    r.discovery ? `<span>discovery mode${r.evolve ? "" : " (method discovery only)"}${
       r.discovery_model ? ` · discovery agents on <b>${esc(r.discovery_model)}</b>` : ""}</span>` : "",
   ].join("");
 }
@@ -622,7 +499,7 @@ function renderDiscovery(view, d) {
     docs.push(doc("Method discovery", m.model ? `agent on ${m.model}` : "", head + reason + table, true));
   }
   $("#disc-docs").innerHTML = docs.join("") ||
-    `<div class="empty-state"><div class="mini-map">${pixelHelix()}</div>Nothing written yet. The data reporter is reading the data.</div>`;
+    `<div class="empty-state"><div class="mini-logo"><img src="/static/icon.svg" alt=""></div>Nothing written yet. The data reporter is reading the data.</div>`;
 }
 
 function renderFigures(view) {
@@ -635,7 +512,7 @@ function renderFigures(view) {
     <a class="fig" href="${fileUrl(view.id, f.path)}" target="_blank" rel="noopener">
       <div class="img"><img loading="lazy" src="${fileUrl(view.id, f.path)}?v=${Math.round(f.mtime)}" alt="${esc(f.path)}"></div>
       <div class="cap" title="${esc(f.path)}">${esc(f.path)}</div></a>`).join("")
-    : `<div class="empty-state"><div class="mini-map">${pixelHelix()}</div>No figures yet.</div>`;
+    : `<div class="empty-state"><div class="mini-logo"><img src="/static/icon.svg" alt=""></div>No figures yet.</div>`;
 }
 
 const isResult = (p) => /\.(h5ad|h5mu)$/i.test(p) || /(^|\/)(results\.json|analysis\.md)$/i.test(p);
@@ -662,6 +539,16 @@ function selectTab(name) {
 // ------------------------------------------------------------------ events
 
 $$(".pick-btns button").forEach((b) => b.addEventListener("click", () => pickPath(b.dataset.kind)));
+
+// Discovery mode: the card itself shows the change (gradient edge, the stages it adds, the
+// button's wording), so the page needs no explanation text.
+function syncDiscovery() {
+  const on = $("#f-discovery").checked;
+  $("#new-form").classList.toggle("discovery", on);
+  $("#disc-strip").hidden = !on;
+  $("#f-start-label").textContent = on ? "Start discovery" : "Start analysis";
+}
+$("#f-discovery").addEventListener("change", syncDiscovery);
 
 $("#new-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
@@ -729,10 +616,6 @@ window.addEventListener("hashchange", route);
 
 // ------------------------------------------------------------------ start
 
-document.querySelectorAll("[data-pixel-helix]").forEach((n) => { n.innerHTML = pixelHelix(); });
-document.querySelectorAll("[data-pixel-word]").forEach((n) => { n.innerHTML = pixelWordmark(); });
-setFavicon();
-startBackgroundHelix();
 loadConfig(true).catch(() => {});
 route();
 app.listTimer = setInterval(refreshList, 4000);

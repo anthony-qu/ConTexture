@@ -1,45 +1,45 @@
-/* ConTexture page: one dark theme on #333333. The four base colors (A, C, G, T) are used only
-   for decoration and status, never to carry meaning on their own. */
+/* ConTexture page: one light theme in the logo's own colours. Ink navy #1d1f3d, purple #7a5cd0,
+   blue #4fa3e0, lavender #cfc3f2 and the pale line #e6e4ee all come from contexture_logo.svg. */
 :root {
-  --bg: #333333;
-  --surface: #3b3b3b;
-  --surface-glass: rgba(59, 59, 59, 0.9);
-  --surface-2: #434343;
-  --ink: #ededed;
-  --ink-2: #d2d2d2;
-  --muted: #a3a3a3;
-  --line: #474747;
-  --line-2: #565656;
-  /* University of Washington purple (#4B2E83) at the same hue, lightened to read on #333 */
-  --accent: #8f70cd;
-  --accent-2: #a38ad8;
-  --accent-soft: rgba(143, 112, 205, 0.18);
-  --on-accent: #1b1233;
-  --A: #4cbb86;
-  --C: #6f9be0;
-  --G: #e5b24a;
-  --T: #e2735e;
-  --danger: #f08a75;
-  --danger-soft: rgba(240, 138, 117, 0.14);
-  --warn-soft: rgba(229, 178, 74, 0.14);
-  --code-bg: #262626;
-  --code-ink: #e4e1d6;
-  --code-line: #3c3c3c;
+  --bg: #f7f7fb;
+  --surface: #ffffff;
+  --surface-glass: #ffffff;
+  --surface-2: #f1f0f7;
+  --ink: #1d1f3d;
+  --ink-2: #3f4160;
+  --muted: #7d7f9a;
+  --line: #e6e4ee;
+  --line-2: #d3d0e2;
+  --accent: #7a5cd0;
+  --accent-2: #6749c2;
+  --accent-soft: rgba(122, 92, 208, 0.12);
+  --on-accent: #ffffff;
+  --blue: #4fa3e0;
+  --lavender: #cfc3f2;
+  --gradient: linear-gradient(120deg, #7a5cd0, #4fa3e0);
+  /* status colours (the names A, C, G, T are historical): done, information, waiting, failure */
+  --A: #3aa776;
+  --C: #4fa3e0;
+  --G: #d9a441;
+  --T: #d9654f;
+  --danger: #c84f3b;
+  --danger-soft: rgba(217, 101, 79, 0.12);
+  --warn-soft: rgba(217, 164, 65, 0.14);
+  /* code cells stay dark, in the ink of the name */
+  --code-bg: #22243f;
+  --code-ink: #e8e6f0;
+  --code-line: #2f3155;
   --tok-k: #f0a35e;
-  --tok-s: #9fcf7b;
-  --tok-c: #7d878d;
+  --tok-s: #a9d98a;
+  --tok-c: #8b8fb0;
   --tok-n: #e6c07b;
-  --tok-f: #82aaff;
-  --out-bg: #2d2d2d;
-  /* the background helix: only slightly lighter than --bg */
-  --helix-back: #393939;
-  --helix-rung: #383838;
-  --helix-front: #444444;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 6px 18px rgba(0, 0, 0, 0.2);
+  --tok-f: #8fb8ff;
+  --out-bg: #f4f3f9;
+  --shadow: 0 1px 2px rgba(29, 31, 61, 0.05), 0 8px 24px rgba(29, 31, 61, 0.07);
   --radius: 12px;
   --sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -55,9 +55,6 @@ a { color: var(--accent); }
 code { font-family: var(--mono); font-size: 0.88em; }
 .muted { color: var(--muted); }
 .small { font-size: 12.5px; }
-
-/* The slowly turning pixel helix behind everything. */
-.bg-helix { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 
 /* ------------------------------------------------------------------ layout */
 .shell {
@@ -75,16 +72,14 @@ code { font-family: var(--mono); font-size: 0.88em; }
   gap: 14px;
   padding: 22px 16px 16px;
   border-right: 1px solid var(--line);
-  background: rgba(44, 44, 44, 0.72);
-  backdrop-filter: blur(3px);
+  background: #fbfbfd;
 }
 .main { padding: 34px 40px 80px; min-width: 0; }
 .view { max-width: 980px; margin: 0 auto; }
 
 /* ------------------------------------------------------------------ brand */
-.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); padding: 2px 6px 8px; }
-.brand-mark svg { width: 27px; height: 39px; display: block; } /* 3 screen pixels per drawing pixel */
-.wordmark svg { display: block; } /* 3 screen pixels per drawing pixel, like the icon */
+.brand { display: block; padding: 4px 8px 10px; }
+.brand img { height: 30px; width: auto; display: block; }   /* contexture_logo.svg, unchanged */
 
 /* ------------------------------------------------------------------ buttons */
 .btn {
@@ -139,16 +134,16 @@ code { font-family: var(--mono); font-size: 0.88em; }
   display: flex; flex-direction: column; justify-content: center;
 }
 .eyebrow { margin: 0 0 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
-.card { position: relative; background: var(--surface-glass); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); backdrop-filter: blur(2px); }
+.card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
 .form { padding: 28px; display: flex; flex-direction: column; gap: 18px; width: 100%; }
 .field { display: flex; flex-direction: column; gap: 7px; }
 .label { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
 input, textarea {
-  font: 14.5px/1.5 var(--sans); color: var(--ink); background: var(--bg);
+  font: 14.5px/1.5 var(--sans); color: var(--ink); background: #fbfbfd;
   border: 1px solid var(--line-2); border-radius: 9px; padding: 11px 13px; width: 100%;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-input::placeholder, textarea::placeholder { color: #7c7c7c; }
+input::placeholder, textarea::placeholder { color: #a3a5bc; }
 #f-data, #f-model { font-family: var(--mono); font-size: 13.5px; }
 textarea { resize: vertical; min-height: 118px; }
 input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -180,7 +175,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
 .progress { margin-top: 14px; height: 3px; border-radius: 3px; overflow: hidden; background: var(--surface-2); }
 .progress span {
   display: block; height: 100%; width: 40%;
-  background: linear-gradient(90deg, var(--A), var(--C), var(--G), var(--T));
+  background: var(--gradient);
   animation: slide 1.8s ease-in-out infinite;
 }
 @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
@@ -226,13 +221,13 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
 .md th { background: var(--surface-2); }
 
 .cell { border-radius: var(--radius); overflow: hidden; background: var(--code-bg); border: 1px solid var(--code-line); }
-.cell-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 12px; border-bottom: 1px solid var(--code-line); font: 11.5px var(--mono); color: #8a969d; }
-.cell-head .who { background: #22292e; color: #a9b4ba; }
+.cell-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 12px; border-bottom: 1px solid var(--code-line); font: 11.5px var(--mono); color: #9a9dc0; }
+.cell-head .who { background: #2f3155; color: #c3c6e0; }
 .cell-head .who.spec { background: #3a2f18; color: #e8c173; }
 .cell pre { margin: 0; padding: 12px 14px; overflow-x: auto; color: var(--code-ink); font: 12.8px/1.6 var(--mono); tab-size: 4; }
 .cell.long pre { max-height: 430px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 78%, transparent); mask-image: linear-gradient(#000 78%, transparent); }
-.cell .more { display: block; width: 100%; padding: 7px 12px; background: #1b2125; color: #9fb3bd; border: 0; border-top: 1px solid var(--code-line); font: 12px var(--mono); cursor: pointer; text-align: left; }
-.cell .more:hover { color: #d7e3e8; }
+.cell .more { display: block; width: 100%; padding: 7px 12px; background: #1b1d36; color: #a9adcc; border: 0; border-top: 1px solid var(--code-line); font: 12px var(--mono); cursor: pointer; text-align: left; }
+.cell .more:hover { color: #e8e6f0; }
 .tk-k { color: var(--tok-k); } .tk-s { color: var(--tok-s); } .tk-c { color: var(--tok-c); font-style: italic; }
 .tk-n { color: var(--tok-n); } .tk-f { color: var(--tok-f); }
 
@@ -275,10 +270,10 @@ details.fold.state > summary .glyph { width: 14px; height: 14px; }
 .waiting { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; padding: 18px 0 0 26px; }
 .bases { display: inline-flex; gap: 3px; }
 .bases i { width: 5px; height: 14px; border-radius: 2px; display: block; animation: bob 1.1s ease-in-out infinite; }
-.bases i:nth-child(1) { background: var(--A); }
-.bases i:nth-child(2) { background: var(--C); animation-delay: 0.12s; }
-.bases i:nth-child(3) { background: var(--G); animation-delay: 0.24s; }
-.bases i:nth-child(4) { background: var(--T); animation-delay: 0.36s; }
+.bases i:nth-child(1) { background: var(--accent); }
+.bases i:nth-child(2) { background: var(--blue); animation-delay: 0.12s; }
+.bases i:nth-child(3) { background: var(--lavender); animation-delay: 0.24s; }
+.bases i:nth-child(4) { background: var(--accent-2); animation-delay: 0.36s; }
 @keyframes bob { 0%, 100% { transform: scaleY(0.45); opacity: 0.6; } 50% { transform: scaleY(1); opacity: 1; } }
 
 .console { margin-top: 16px; }
@@ -287,7 +282,7 @@ details.fold.state > summary .glyph { width: 14px; height: 14px; }
 
 .to-latest {
   position: fixed; right: 28px; bottom: 26px; z-index: 6;
-  background: var(--ink); color: var(--bg); border: 0; border-radius: 999px; padding: 9px 16px;
+  background: var(--ink); color: #fff; border: 0; border-radius: 999px; padding: 9px 16px;
   font: 500 13px var(--sans); cursor: pointer; box-shadow: var(--shadow);
 }
 
@@ -299,8 +294,8 @@ details.fold.state > summary .glyph { width: 14px; height: 14px; }
 .fig img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .fig .cap { font: 12px var(--mono); padding: 9px 12px; border-top: 1px solid var(--line); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .empty-state { text-align: center; color: var(--muted); padding: 50px 20px; font-size: 14px; }
-.empty-state .mini-map { width: 34px; margin: 0 auto 12px; opacity: 0.5; }
-.empty-state .mini-map svg { width: 100%; height: auto; display: block; image-rendering: pixelated; }
+.empty-state .mini-logo { width: 34px; margin: 0 auto 12px; opacity: 0.35; }
+.empty-state .mini-logo img { width: 100%; height: auto; display: block; }
 
 /* ------------------------------------------------------------------ files */
 table.files { width: 100%; border-collapse: collapse; font-size: 13.5px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
@@ -328,7 +323,7 @@ table.files a { text-decoration: none; }
   border: 1px solid var(--line); border-radius: 16px; padding: 24px 26px 22px;
   background: var(--surface); color: var(--ink); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
 }
-.keys-dialog::backdrop { background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(3px); }
+.keys-dialog::backdrop { background: rgba(29, 31, 61, 0.35); backdrop-filter: blur(3px); }
 .kd-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .kd-head h2 { margin: 0; font-size: 21px; letter-spacing: -0.01em; }
 .kd-close { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 4px; border-radius: 8px; }
@@ -363,8 +358,9 @@ table.files a { text-decoration: none; }
 }
 
 /* ------------------------------------------------------------------ method discovery */
-/* the one "Self-evolving" switch in the form's top-right corner (method discovery + skill
-   evolution together; the hover text is the only explanation) */
+/* the one "Discovery mode" switch in the form's top-right corner (method discovery + skill
+   evolution together; the hover text is the only explanation). Turned on, the card itself
+   changes: a purple-to-blue edge, the stages it adds, and the button's wording. */
 .form-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: -4px; }
 .form-title { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
 .switch { position: relative; display: inline-flex; align-items: center; gap: 9px; cursor: pointer;
@@ -373,11 +369,26 @@ table.files a { text-decoration: none; }
 .switch .track { width: 36px; height: 20px; border-radius: 10px; background: var(--line-2); position: relative;
                  flex: none; transition: background 0.15s; }
 .switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
-                        border-radius: 50%; background: #fff; transition: transform 0.15s; }
+                        border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(29, 31, 61, 0.25);
+                        transition: transform 0.15s; }
 .switch input:checked + .track { background: var(--accent); }
 .switch input:checked + .track::after { transform: translateX(16px); }
 .switch input:focus-visible + .track { box-shadow: 0 0 0 3px var(--accent-soft); }
 .switch input:checked ~ .switch-label { color: var(--ink); }
+#new-form { transition: box-shadow 0.25s; }
+#new-form.discovery {
+  border-color: transparent;
+  background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--gradient) border-box;
+  box-shadow: 0 1px 2px rgba(29, 31, 61, 0.05), 0 14px 40px rgba(122, 92, 208, 0.16);
+}
+#new-form.discovery .form-title { background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#new-form.discovery .switch input:checked + .track { background: var(--gradient); }
+#new-form.discovery .btn-primary { background: var(--gradient); }
+#new-form.discovery .btn-primary:hover { filter: brightness(1.06); }
+.disc-strip { display: flex; flex-wrap: wrap; gap: 4px 0; align-items: center; font-size: 12px; color: var(--muted); margin: -8px 0 -4px; }
+.disc-strip span { display: inline-flex; align-items: center; gap: 6px; }
+.disc-strip span + span::before { content: ""; width: 16px; height: 1px; background: var(--line-2); margin: 0 8px; }
+.disc-strip i { width: 6px; height: 6px; border-radius: 50%; background: var(--gradient); }
 .entry.k-code.pre .cell-head > span:first-child { color: var(--accent); }
 .entry.notice.stage { border-style: solid; }
 .entry.fold.stage > summary b { color: var(--ink-2); font-weight: 600; }

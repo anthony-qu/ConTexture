@@ -4,16 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ConTexture</title>
+  <link rel="icon" type="image/svg+xml" href="/static/icon.svg">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <canvas id="bg-helix" class="bg-helix" aria-hidden="true"></canvas>
   <div class="shell">
     <aside class="sidebar">
-      <a class="brand" href="#/new">
-        <span class="brand-mark" data-pixel-helix></span>
-        <span class="wordmark" role="img" aria-label="ConTexture" data-pixel-word></span>
-      </a>
+      <a class="brand" href="#/new"><img src="/static/logo.svg" alt="ConTexture"></a>
       <a class="btn btn-primary wide" href="#/new">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
         New analysis
@@ -37,8 +34,11 @@
             <label class="switch" title="Before the analysis: a data report, a new skill composed for an assay no skill covers, a plan, and a method found and installed when the plan needs one.">
               <input id="f-discovery" name="discovery" type="checkbox">
               <span class="track" aria-hidden="true"></span>
-              <span class="switch-label">Self-evolving</span>
+              <span class="switch-label">Discovery mode</span>
             </label>
+          </div>
+          <div id="disc-strip" class="disc-strip" hidden>
+            <span><i></i>Data report</span><span><i></i>Skill maker</span><span><i></i>Plan</span><span><i></i>Method search</span><span><i></i>Analysis</span>
           </div>
           <label class="field">
             <span class="label">Data</span>
@@ -70,7 +70,7 @@
           <div id="form-error" class="form-error" role="alert" hidden></div>
           <button id="f-start" class="btn btn-primary wide" type="submit">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.5v9l7-4.5z"/></svg>
-            Start analysis
+            <span id="f-start-label">Start analysis</span>
           </button>
         </form>
       </section>
