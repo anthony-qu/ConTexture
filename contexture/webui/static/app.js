@@ -9,15 +9,16 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
 
 // ------------------------------------------------------------------ background
 
-// A lattice of small round spots, like a spatial transcriptomics spot array, behind the page.
-// Spots near the cursor light up in the logo's purple and blue and fade back over about a
-// second; with the cursor away, nothing moves and nothing is drawn.
+// A hexagonal lattice of small round spots behind the page, packed as on a Visium slide: every
+// other row shifted by half the pitch, rows the pitch times sqrt(3)/2 apart. Spots near the
+// cursor light up in the logo's purple and blue and fade back over about a second; with the
+// cursor away, nothing moves and nothing is drawn.
 function startLattice() {
   const canvas = $("#bg-lattice");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const STEP = 28, RADIUS = 1.4, REACH = 170, DECAY = 0.93;
+  const STEP = 30, ROW = STEP * Math.sqrt(3) / 2, RADIUS = 1.8, REACH = 180, DECAY = 0.93;
   let W = 0, H = 0, cols = 0, rows = 0, energy = new Float32Array(0);
   let mouse = null, running = false, colours = null;
 
@@ -37,7 +38,7 @@ function startLattice() {
     W = window.innerWidth; H = window.innerHeight;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    cols = Math.ceil(W / STEP) + 1; rows = Math.ceil(H / STEP) + 1;
+    cols = Math.ceil(W / STEP) + 2; rows = Math.ceil(H / ROW) + 2;
     energy = new Float32Array(cols * rows);
     draw();
   }
@@ -49,7 +50,7 @@ function startLattice() {
     let alive = false;
     for (let j = 0; j < rows; j++) {
       for (let i = 0; i < cols; i++) {
-        const x = i * STEP + STEP / 2, y = j * STEP + STEP / 2, k = j * cols + i;
+        const x = i * STEP + (j % 2 ? STEP / 2 : 0), y = j * ROW + ROW / 2, k = j * cols + i;
         let e = energy[k];
         if (mouse) {
           const d = Math.hypot(x - mouse.x, y - mouse.y);
@@ -60,7 +61,7 @@ function startLattice() {
           // purple at the top left, blue at the bottom right, as in the logo's gradient
           const [r, g, b] = mix(colours.a, colours.b, (x / W + y / H) / 2);
           ctx.fillStyle = `rgba(${r},${g},${b},${0.15 + 0.75 * e})`;
-          ctx.beginPath(); ctx.arc(x, y, RADIUS + 1.3 * e, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(x, y, RADIUS + 1.6 * e, 0, Math.PI * 2); ctx.fill();
         } else {
           ctx.fillStyle = `rgb(${br},${bg},${bb})`;
           ctx.beginPath(); ctx.arc(x, y, RADIUS, 0, Math.PI * 2); ctx.fill();
