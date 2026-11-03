@@ -156,6 +156,12 @@
           <div id="gallery" class="gallery"></div>
         </div>
         <div class="panel" id="p-files" hidden>
+          <div class="files-search">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2L14 14"/></svg>
+            <input id="file-search" type="search" spellcheck="false" autocomplete="off"
+                   placeholder="Search by file name" aria-label="Search files by name">
+            <span class="files-found" id="files-found" hidden></span>
+          </div>
           <table class="files"><thead><tr><th>File</th><th>Size</th><th>Changed</th><th></th></tr></thead>
             <tbody id="file-rows"></tbody></table>
         </div>

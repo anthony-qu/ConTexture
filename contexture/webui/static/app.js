@@ -616,6 +616,8 @@ function openRun(id) {
   $("#timeline").innerHTML = "";
   $("#gallery").innerHTML = "";
   $("#file-rows").innerHTML = "";
+  $("#file-search").value = "";
+  $("#files-found").hidden = true;
   $("#stages").innerHTML = "";
   $("#disc-docs").innerHTML = "";
   $("#tab-discovery").hidden = true;
@@ -957,7 +959,38 @@ function renderFiles(view) {
       <td class="name">${fileUrl(view.id, f.path) ? `<a href="${fileUrl(view.id, f.path)}" target="_blank" rel="noopener">${esc(f.path)}</a>` : esc(f.path)}</td>
       <td class="num">${size(f.size)}</td><td class="num">${esc(ago(f.mtime))}</td>
       <td class="num">${fileUrl(view.id, f.path) ? `<a href="${fileUrl(view.id, f.path, true)}" download="${esc(f.path.split("/").pop())}">Download</a>` : `<span class="muted">not in this copy</span>`}</td></tr>`).join("");
+  filterFiles();
 }
+
+// The Files tab's search box: every word typed must appear somewhere in the file's path
+// (case does not matter); the rows that do not match are hidden, and a count says how many do.
+function filterFiles() {
+  const words = $("#file-search").value.toLowerCase().split(/\s+/).filter(Boolean);
+  const rows = $$("#file-rows tr");
+  let shown = 0;
+  for (const tr of rows) {
+    const name = tr.querySelector("td.name").textContent.toLowerCase();
+    const hit = words.every((w) => name.includes(w));
+    tr.hidden = !hit;
+    if (hit) shown++;
+  }
+  const found = $("#files-found");
+  found.hidden = !words.length;
+  if (words.length) found.textContent = rows.length ? `${shown} of ${rows.length}` : "no files yet";
+  let empty = $("#files-none");
+  if (words.length && !shown && rows.length) {
+    if (!empty) {
+      empty = document.createElement("div");
+      empty.id = "files-none"; empty.className = "empty-state";
+      $("#p-files").appendChild(empty);
+    }
+    empty.textContent = "No file name contains that.";
+  } else if (empty) empty.remove();
+}
+$("#file-search").addEventListener("input", filterFiles);
+$("#file-search").addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape" && ev.target.value) { ev.target.value = ""; filterFiles(); ev.stopPropagation(); }
+});
 
 function selectTab(name) {
   document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
