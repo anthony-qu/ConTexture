@@ -421,7 +421,8 @@ table.files a { text-decoration: none; }
    evolution together; the hover text is the only explanation). Turned on, the card itself
    changes: a purple-to-blue edge and the button's wording. */
 .form-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: -4px; }
-.form-title { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-light); }
+.form-title { display: inline-flex; align-items: center; gap: 9px; font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-light); }
+.form-title img { height: 22px; width: auto; display: block; }   /* the logo's icon, icon.svg */
 .switch { position: relative; display: inline-flex; align-items: center; gap: 9px; cursor: pointer;
           font-size: 13px; font-weight: 500; color: var(--ink-2); user-select: none; }
 .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
