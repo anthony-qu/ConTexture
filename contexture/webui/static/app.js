@@ -7,6 +7,88 @@ const $$ = (sel) => [...document.querySelectorAll(sel)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+// ------------------------------------------------------------------ background
+
+// A lattice of small round spots, like a spatial transcriptomics spot array, behind the page.
+// Spots near the cursor light up in the logo's purple and blue and fade back over about a
+// second; with the cursor away, nothing moves and nothing is drawn.
+function startLattice() {
+  const canvas = $("#bg-lattice");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const STEP = 28, RADIUS = 1.4, REACH = 170, DECAY = 0.93;
+  let W = 0, H = 0, cols = 0, rows = 0, energy = new Float32Array(0);
+  let mouse = null, running = false, colours = null;
+
+  // The page's colours, re-read whenever the theme changes.
+  function palette() {
+    const css = getComputedStyle(document.documentElement);
+    const rgb = (v) => {
+      const h = css.getPropertyValue(v).trim().replace("#", "");
+      return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+    };
+    colours = { base: rgb("--lattice"), a: rgb("--accent"), b: rgb("--blue") };
+  }
+  const mix = (p, q, t) => p.map((v, i) => Math.round(v + (q[i] - v) * t));
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cols = Math.ceil(W / STEP) + 1; rows = Math.ceil(H / STEP) + 1;
+    energy = new Float32Array(cols * rows);
+    draw();
+  }
+
+  function draw() {
+    if (!colours) palette();
+    ctx.clearRect(0, 0, W, H);
+    const [br, bg, bb] = colours.base;
+    let alive = false;
+    for (let j = 0; j < rows; j++) {
+      for (let i = 0; i < cols; i++) {
+        const x = i * STEP + STEP / 2, y = j * STEP + STEP / 2, k = j * cols + i;
+        let e = energy[k];
+        if (mouse) {
+          const d = Math.hypot(x - mouse.x, y - mouse.y);
+          if (d < REACH) { const t = 1 - d / REACH; e = Math.max(e, t * t); }
+        }
+        if (e > 0.01) { alive = true; energy[k] = e * DECAY; } else { energy[k] = 0; e = 0; }
+        if (e > 0) {
+          // purple at the top left, blue at the bottom right, as in the logo's gradient
+          const [r, g, b] = mix(colours.a, colours.b, (x / W + y / H) / 2);
+          ctx.fillStyle = `rgba(${r},${g},${b},${0.15 + 0.75 * e})`;
+          ctx.beginPath(); ctx.arc(x, y, RADIUS + 1.3 * e, 0, Math.PI * 2); ctx.fill();
+        } else {
+          ctx.fillStyle = `rgb(${br},${bg},${bb})`;
+          ctx.beginPath(); ctx.arc(x, y, RADIUS, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+    return alive;
+  }
+
+  function frame() {
+    running = draw();
+    if (running) requestAnimationFrame(frame);
+  }
+  function wake() {
+    if (!running) { running = true; requestAnimationFrame(frame); }
+  }
+
+  palette();
+  resize();
+  window.addEventListener("resize", resize);
+  new MutationObserver(() => { palette(); draw(); })
+    .observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  if (still) return;
+  window.addEventListener("mousemove", (ev) => { mouse = { x: ev.clientX, y: ev.clientY }; wake(); }, { passive: true });
+  window.addEventListener("mouseleave", () => { mouse = null; wake(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) mouse = null; });
+}
+
 // ------------------------------------------------------------------ helpers
 
 async function api(path, options = {}) {
@@ -623,6 +705,7 @@ window.addEventListener("hashchange", route);
 
 // ------------------------------------------------------------------ start
 
+startLattice();
 loadConfig(true).catch(() => {});
 route();
 app.listTimer = setInterval(refreshList, 4000);
