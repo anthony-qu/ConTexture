@@ -1,6 +1,6 @@
 <p align="center"><img src="docs/banner.png" alt="ConTexture: a self-evolving agentic AI system for spatial multi-omics analysis that adapts to new, unseen assay technologies" width="100%"></p>
 
-## Install
+## Installation
 
 Install [uv](https://docs.astral.sh/uv/) first:
 
