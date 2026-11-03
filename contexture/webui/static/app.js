@@ -540,12 +540,29 @@ async function refreshList() {
     app.runs = runs;
     const current = app.view && app.view.id;
     $("#run-list").innerHTML = runs.length ? runs.map((r) => `
-      <li><a href="#/run/${esc(r.id)}" class="${r.id === current ? "active" : ""}" title="${esc(r.goal)}">
+      <li data-id="${esc(r.id)}"><a href="#/run/${esc(r.id)}" class="${r.id === current ? "active" : ""}" title="${esc(r.goal)}">
         <span class="dot s-${r.status}"></span>
         <span class="rl-goal">${esc(r.goal.split("\n")[0])}</span>
         <span class="rl-meta">${esc(STATUS_TEXT[r.status] || r.status)} · ${esc(ago(r.created))} · ${esc(r.model.split("/").pop())}</span>
-      </a></li>`).join("") : `<li class="empty">No analyses yet.</li>`;
+      </a><button class="rl-del" type="button" title="Delete this session and its folder" aria-label="Delete this session">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5M6.7 7v4M9.3 7v4"/></svg>
+      </button></li>`).join("") : `<li class="empty">No sessions yet.</li>`;
   } catch (e) { /* keep the last list */ }
+}
+
+// The trash button beside a session: ask, then delete the session's folder.
+async function deleteRun(id) {
+  const r = (app.runs || []).find((x) => x.id === id);
+  const goal = r ? r.goal.split("\n")[0] : id;
+  if (!confirm(`Delete this session and everything it saved?\n\n${goal}\n\nThis cannot be undone.`)) return;
+  try {
+    await api(`/api/runs/${encodeURIComponent(id)}`, { method: "DELETE" });
+  } catch (e) {
+    alert(e.message);
+    return;
+  }
+  if (app.view && app.view.id === id) location.hash = "#/new";
+  await refreshList();
 }
 
 // ------------------------------------------------------------------ views
@@ -942,6 +959,12 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !$("#m
 
 // Light or dark: the choice is kept in this browser; without one the system's setting is used
 // (set before the first paint by the small script in the page head).
+$("#run-list").addEventListener("click", (e) => {
+  const btn = e.target.closest(".rl-del");
+  if (!btn) return;
+  e.preventDefault();
+  deleteRun(btn.closest("li").dataset.id);
+});
 $("#theme-btn").addEventListener("click", () => {
   const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   document.documentElement.dataset.theme = next;

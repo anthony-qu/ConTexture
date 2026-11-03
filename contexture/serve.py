@@ -32,6 +32,7 @@ import json
 import os
 import re
 import secrets
+import shutil
 import signal
 import socket
 import subprocess
@@ -490,6 +491,21 @@ def _stop(request: Request):
     return JSONResponse({"ok": True})
 
 
+def _delete(request: Request):
+    """Delete a finished session: its folder under the runs directory and everything in it."""
+    run = _run_dir(request.path_params["rid"])
+    if run is None:
+        return JSONResponse({"error": "No such session."}, status_code=404)
+    if _status(run)["active"]:
+        return JSONResponse({"error": "This session is still running. Stop it first."},
+                            status_code=409)
+    try:
+        shutil.rmtree(run)
+    except OSError as e:
+        return JSONResponse({"error": f"Could not delete the folder: {e}"}, status_code=500)
+    return JSONResponse({"ok": True})
+
+
 def _file(request: Request):
     run = _run_dir(request.path_params["rid"])
     if run is None:
@@ -543,6 +559,7 @@ def build_app() -> Starlette:
         Route("/api/runs", _list, methods=["GET"]),
         Route("/api/runs", _start, methods=["POST"]),
         Route("/api/runs/{rid}", _detail),
+        Route("/api/runs/{rid}", _delete, methods=["DELETE"]),
         Route("/api/runs/{rid}/log", _log),
         Route("/api/runs/{rid}/discovery", _discovery),
         Route("/api/runs/{rid}/stop", _stop, methods=["POST"]),

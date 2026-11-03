@@ -163,6 +163,16 @@ code { font-family: var(--mono); font-size: 0.88em; }
 .run-list .rl-goal { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .run-list .rl-meta { grid-column: 2; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .run-list .empty { color: var(--muted); font-size: 13px; padding: 6px 10px; }
+.run-list li { position: relative; }
+.run-list .rl-del {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 26px; height: 26px; border-radius: 7px; border: 0; background: transparent; color: var(--muted);
+  display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity 0.12s;
+}
+.run-list .rl-del svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.run-list li:hover .rl-del, .run-list .rl-del:focus-visible { opacity: 1; }
+.run-list .rl-del:hover { background: var(--danger-soft); color: var(--danger); }
+.run-list li:hover .rl-goal, .run-list li:hover .rl-meta { padding-right: 26px; }
 .side-foot { padding: 8px 0 0; display: flex; gap: 8px; align-items: flex-start; }
 .side-foot .keys-btn { flex: 1; margin-bottom: 0; }
 .theme-btn {
