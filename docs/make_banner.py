@@ -59,4 +59,4 @@ def banner(layout, out, W=1800, H=380, R=26):
     print("wrote", out + ".png")
 
 
-banner("stack", __import__("os").path.join(__import__("os").path.dirname(__file__), "banner"))
+banner("side", __import__("os").path.join(__import__("os").path.dirname(__file__), "banner"))

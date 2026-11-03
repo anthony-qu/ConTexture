@@ -1,27 +1,22 @@
 <p align="center"><img src="docs/banner.png" alt="ConTexture: a self-evolving agentic AI system for spatial multi-omics analysis that adapts to new, unseen assay technologies" width="100%"></p>
 
-ConTexture is a self-evolving agentic AI system for spatial multi-omics analysis that can adapt
-to new, unseen assay technologies.
-
 ## Install
 
-You need [uv](https://docs.astral.sh/uv/) (macOS or Linux; on Windows, use WSL):
+Install [uv](https://docs.astral.sh/uv/) first:
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Then install ConTexture:
+Install ConTexture:
 
 ```bash
 uv tool install git+https://github.com/anthony-qu/ConTexture
 ```
 
-This gives you the `contexture` command. uv also fetches Python 3.13 if you do not have it. If
-your terminal says `contexture` is not found, open a new terminal window, or run
-`uv tool update-shell` once. To update later, run `uv tool upgrade contexture`.
+## Try our Web UI
 
-## Use it in your browser
+In terminal:
 
 ```bash
 contexture
