@@ -1,9 +1,7 @@
-# ConTexture
+<p align="center"><img src="docs/banner.png" alt="ConTexture: a self-evolving agentic AI system for spatial multi-omics analysis that adapts to new, unseen assay technologies" width="100%"></p>
 
-An autonomous agent for spatial multi-omics analysis. Give it a data file and a goal in plain
-English. It writes and runs Python until the goal is met, then saves the result, the figures and a
-full transcript of what it did. Everything runs on your own computer; only the requests to the
-language model leave it.
+ConTexture is a self-evolving agentic AI system for spatial multi-omics analysis that can adapt
+to new, unseen assay technologies.
 
 ## Install
 
@@ -29,24 +27,12 @@ your terminal says `contexture` is not found, open a new terminal window, or run
 contexture
 ```
 
-This opens the page in your browser. The first time, a **Model keys** panel asks for an API key
-from a model provider (Anthropic, OpenAI, DeepSeek, Google Gemini or another). The key is saved
-on your computer where only you can read it. Then you pick your data (an `.h5ad` or `.h5mu`
-file, or a folder of them) with the **Choose file** button, which opens your computer's own file
-window, or type its path; describe the goal; and watch the **Workbench** as it runs. It shows
-what ConTexture says at each step; every code cell it runs is folded into one line with its
-printed output, and a click opens it. The figures and the files it writes have their own tabs,
-and the **Transcript** button in the corner opens the raw log. The data is read where it is,
-never copied.
+![The ConTexture page](docs/screenshot.png)
 
-The three dots in the form's corner hold the turn budget, the agent layout (adaptive, flat or
-orchestrated) and the model for the discovery agents; the defaults are the paper's.
-
-Each analysis gets its own folder in `contexture-runs/`, inside the folder you started
-`contexture` from. An analysis keeps going if you close the browser.
-
-The page's address ends with an access code. Anyone who has the full address can start analyses
-with your API key, so do not share it.
+Pick a data file (`.h5ad` or `.h5mu`, or a folder of them), describe the goal, choose a model,
+and start. The first time, the page asks for an API key from a model provider; it is saved on
+your computer. **Discovery mode** turns on method discovery and skill evolution. Each run gets
+its own folder in `contexture-runs/`, inside the folder you started `contexture` from.
 
 ## Or run it in the terminal
 
@@ -59,71 +45,7 @@ contexture run sample.h5ad "Cluster the spots, name the spatial domains, and sav
 | `--output-dir` | `contexture-output/` in the current folder | where results are written |
 | `--model` | a model your saved key can use | any [LiteLLM](https://docs.litellm.ai/) model name |
 | `--max-turns` | `30` | the turn budget for the run |
-| `--discovery` | off | method discovery (below) |
-| `--evolve` | off | skill evolution (below; needs `--discovery`) |
+| `--discovery` | off | method discovery |
+| `--evolve` | off | skill evolution (needs `--discovery`) |
 | `--discovery-model` | the same as `--model` | the model for the data reporter, the skill maker and the method discovery agent |
 
-## Method discovery and skill evolution
-
-Both are off by default. On the page one switch, **Self-evolving** in the form's top-right corner,
-turns both on; in the terminal they are `--discovery` and `--evolve`, which can be used apart.
-With them on, a run goes through these stages before the analysis starts, and the page's
-**Discovery** tab shows each one as it finishes:
-
-1. **Data report.** A data reporter reads the data and writes what it finds.
-2. **Skill maker** (skill evolution only). For an assay that no skill covers, it composes a new
-   skill from the existing skills and the platform transformations, tests the code on the data,
-   and adds the skill to this run's menu.
-3. **Plan.** A planner writes the analysis plan and names any step that needs a method that is
-   not installed.
-4. **Method discovery agent** (only when the plan named such a step). It searches Europe PMC and
-   GitHub, ranks the candidates, installs its choice and tests it. The analysis then starts with
-   the plan and the installed method.
-
-Where a discovered method is installed matters, because published methods pin library versions
-that often conflict with a current analysis stack. Run this once:
-
-```bash
-contexture setup-discovery
-```
-
-It needs conda (for example [Miniforge](https://conda-forge.org/download/)) and builds a small
-conda environment, `omics-discovery-min`, that holds only the agent framework. Each discovery run
-that installs a method then works in a fresh copy of it, deleted when the run ends. Without
-conda, a discovered method is installed beside the run inside the analysis environment's
-versions, which is fine for most methods; the page says which of the two will happen.
-
-A method discovery run takes longer than a plain one: the stages above have time budgets of
-6, 25 and 30 minutes, and the environment copy takes a few minutes. A `GITHUB_TOKEN` in the
-environment or in `.env` lifts GitHub's rate limit for the search. The paper's runs used
-`anthropic/claude-opus-5` for the data reporter, the skill maker and the method discovery agent;
-`--discovery-model` sets that.
-
-## Keys and models
-
-The page's **Model** list offers the models of every provider whose key is set, from a table kept
-by hand in `contexture/keys.py` (`MODELS`); edit that table when a provider adds or retires a
-model. "Another model" at the end of the list takes any
-[LiteLLM](https://docs.litellm.ai/docs/providers) model name typed in.
-
-Add, replace or remove a key from the **Model keys** button in the page's sidebar, or with
-`contexture key` in the terminal. Saved keys live in `~/.config/contexture/keys.env`. A key set
-in your shell environment (for example `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`
-or `GEMINI_API_KEY`) or in a `.env` file in the current folder takes priority over a saved one.
-You pay your model provider for what you use.
-
-The agent runs the code it writes without a sandbox, so work on a copy of your data.
-
-## Develop
-
-```bash
-git clone https://github.com/anthony-qu/ConTexture.git
-cd ConTexture
-uv sync
-uv run contexture
-```
-
-Every package, direct or indirect, is pinned in `pyproject.toml` to the version ConTexture was
-tested with, because `uv tool install` resolves afresh and ignores `uv.lock`. The indirect pins
-are generated: after changing a direct pin, run `uv lock`, then `python pin_from_lock.py`, then
-`uv lock` again, and test.
