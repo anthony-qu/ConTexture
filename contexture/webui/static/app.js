@@ -228,6 +228,31 @@ function stateSummary(text) {
   return line ? line.trim().replace(/\s+/g, " ").slice(0, 110) : "";
 }
 
+// The pre-analysis agents, each the owner of a group of transcript entries.
+const GROUPS = {
+  reporter: "Data reporter", maker: "Skill maker", planner: "Planner", scout: "Method discovery agent",
+};
+function stageOf(kind) {
+  if (kind === "REPORTER" || kind === "REPORT-CODE" || kind === "REPORT-OUTPUT") return "reporter";
+  if (kind === "MAKER") return "maker";
+  if (kind === "PLANNER" || kind === "PLAN-CODE" || kind === "PLAN-OUTPUT") return "planner";
+  if (kind === "SCOUT") return "scout";
+  return null;
+}
+function openGroup(view, key, timeline) {
+  const node = el(`<details class="entry stage-group working" open><summary><b>${esc(GROUPS[key])}</b>
+    <span class="muted status">working</span></summary><div class="group-body"></div></details>`);
+  timeline.appendChild(node);
+  view.group = { key, node, body: node.querySelector(".group-body"), n: 0 };
+}
+function closeGroup(view) {
+  const g = view.group;
+  g.node.open = false;
+  g.node.classList.remove("working");
+  g.node.querySelector(".status").textContent = `done · ${g.n} ${g.n === 1 ? "entry" : "entries"}`;
+  view.group = null;
+}
+
 function renderSection(s, view) {
   const t = s.text || "";
   if (["CODE", "SESSION", "AGENT-START", "ROUTING"].includes(s.kind)) view.analysisStarted = true;
@@ -481,7 +506,7 @@ function openRun(id) {
   if (app.view && app.view.id === id) return;
   closeRun();
   const view = app.view = { id, total: 0, cell: 0, last: null, figSig: "", fileSig: "", discSig: "",
-                            analysisStarted: false, info: null, timer: null, clock: null, finalPass: false };
+                            analysisStarted: false, info: null, timer: null, clock: null, finalPass: false, group: null };
   $("#timeline").innerHTML = "";
   $("#gallery").innerHTML = "";
   $("#file-rows").innerHTML = "";
@@ -521,8 +546,17 @@ async function tick(view) {
   const timeline = $("#timeline");
   for (const s of log.sections) {
     const node = renderSection(s, view);
-    if (node) { timeline.appendChild(node); view.last = node; }
+    if (!node) continue;
+    // Everything one pre-analysis agent writes goes into its own group, open while it works
+    // and folded as soon as the next agent (or the analysis) begins.
+    const stage = stageOf(s.kind);
+    if (view.group && view.group.key !== stage) closeGroup(view);
+    if (stage && !view.group) openGroup(view, stage, timeline);
+    (view.group ? view.group.body : timeline).appendChild(node);
+    if (view.group) view.group.n += 1;
+    view.last = node;
   }
+  if (!info.active && view.group) closeGroup(view);
   view.total = log.total;
   if (log.sections.length) {
     if (follow) window.scrollTo({ top: document.documentElement.scrollHeight });
