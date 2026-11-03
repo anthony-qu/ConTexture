@@ -497,6 +497,19 @@ table.files a { text-decoration: none; }
 .stage-group > summary::before { content: "›"; display: inline-block; transition: transform 0.15s; color: var(--muted); font-size: 14px; }
 .stage-group[open] > summary::before { transform: rotate(90deg); }
 .stage-group > summary .status { font-size: 12.5px; }
+/* The short card under a folded agent group: that agent's product, in a few lines. */
+.k-summary { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent-light); border-radius: var(--radius); padding: 10px 14px 12px; font-size: 13px; }
+.k-summary::before { border-color: var(--accent-light); }
+.k-summary .sum-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; font-size: 12.5px; }
+.k-summary .sum-head b { color: var(--ink-2); }
+.k-summary .sum-links { margin-left: auto; display: flex; gap: 12px; }
+.k-summary .link { background: none; border: 0; padding: 0; font: inherit; font-size: 12px; color: var(--accent); cursor: pointer; text-decoration: none; }
+.k-summary .link:hover { text-decoration: underline; }
+.k-summary .sum-body p, .k-summary .sum-body ul, .k-summary .sum-body ol { margin: 4px 0; }
+.k-summary .sum-body ul, .k-summary .sum-body ol { padding-left: 20px; }
+.k-summary .sum-body li { margin: 2px 0; }
+.k-summary .sum-body .muted { color: var(--muted); }
+.k-summary .sum-full { max-height: 520px; overflow: auto; padding-right: 6px; }
 .stage-group.working > summary .status { color: var(--accent); }
 .stage-group.working::before { background: var(--accent); border-color: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
 .stage-group .group-body { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 2px 14px 14px 36px; }

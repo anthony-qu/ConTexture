@@ -244,6 +244,7 @@ function stageOf(kind) {
 function openGroup(view, key, timeline) {
   const node = el(`<details class="entry stage-group working" open><summary><b>${esc(GROUPS[key])}</b>
     <span class="muted status">working</span></summary><div class="group-body"></div></details>`);
+  node.dataset.key = key;
   timeline.appendChild(node);
   view.group = { key, node, body: node.querySelector(".group-body"), n: 0 };
 }
@@ -634,6 +635,7 @@ async function tick(view) {
   }
   renderFigures(view);
   renderFiles(view);
+  renderFinalCard(view);
   if (info.discovery) {
     $("#tab-discovery").hidden = false;
     try { renderDiscovery(view, await api(`/api/runs/${encodeURIComponent(view.id)}/discovery`)); }
@@ -680,10 +682,158 @@ function renderMeta(view) {
   ].join("");
 }
 
+// ------------------------------------------------------------------ stage summary cards
+// Under each pre-analysis agent's folded group, a short card with the agent's product: the
+// data report's summary section, the composed skills' purpose lines, the plan's steps, the
+// method chosen. Built in the page from the documents the Discovery tab already receives.
+
+const parseHtml = (html) => new DOMParser().parseFromString(html || "", "text/html").body;
+const HEADING = "h1,h2,h3,h4,h5,h6";
+function sectionAfter(body, re) {
+  const h = [...body.querySelectorAll(HEADING)].find((x) => re.test(x.textContent.trim()));
+  if (!h) return null;
+  const nodes = [];
+  for (let n = h.nextElementSibling; n && !n.matches(HEADING); n = n.nextElementSibling) nodes.push(n);
+  return nodes;
+}
+function clipText(t, max) {
+  t = t.replace(/\s+/g, " ").trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const stop = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("; "), cut.lastIndexOf(", "));
+  return cut.slice(0, stop > max * 0.6 ? stop + 1 : max).trim() + " …";
+}
+// A few nodes of a document as short HTML: paragraphs clipped, lists cut to five items.
+function clipNodes(nodes, maxChars = 480) {
+  let used = 0; const out = [];
+  for (const n of nodes) {
+    if (used >= maxChars) break;
+    if (n.matches("ul,ol")) {
+      const items = [...n.children].slice(0, 5).map((li) => `<li>${esc(clipText(li.textContent, 160))}</li>`);
+      const more = n.children.length - 5;
+      out.push(`<${n.tagName.toLowerCase()}>${items.join("")}${more > 0 ? `<li class="muted">and ${more} more</li>` : ""}</${n.tagName.toLowerCase()}>`);
+      used += items.join("").length;
+    } else if (n.matches("p,blockquote")) {
+      const t = clipText(n.textContent, maxChars - used);
+      if (t) { out.push(`<p>${esc(t)}</p>`); used += t.length; }
+    } else if (n.matches("table")) {
+      out.push(`<p class="muted">a table of ${n.querySelectorAll("tr").length - 1} rows</p>`); used += 40;
+    }
+  }
+  return out.join("");
+}
+function firstParagraph(body, minLen = 60) {
+  const p = [...body.querySelectorAll("p")].find((x) => x.textContent.trim().length >= minLen);
+  return p ? `<p>${esc(clipText(p.textContent, 480))}</p>` : "";
+}
+
+function stageSummaries(view, d) {
+  const out = {};
+  if (d.report !== null) {
+    const body = parseHtml(d.report);
+    const sec = sectionAfter(body, /^(summary|overview|conclusions?|in short|key points)\b/i);
+    out.reporter = { sub: "what it found", short: (sec && clipNodes(sec)) || firstParagraph(body), full: d.report };
+  }
+  if (d.evolution || d.skills.length) {
+    const items = d.skills.map((sk) => {
+      const m = /use_for:\s*([^\n]+)/.exec(parseHtml(sk.html).textContent || "");
+      return `<li><b>${esc(sk.name)}</b>${m ? `: ${esc(clipText(m[1], 220))}` : ""}</li>`;
+    });
+    const ev = d.evolution || {};
+    let status = "";
+    if (d.skills.length) {
+      status = `Composed ${plural(d.skills.length, "skill")} for this run`;
+      if (ev.n_snippets_passed != null) status += `; ${plural(ev.n_snippets_passed, "code block")} tested on the data`;
+      status += ".";
+    } else status = ev.error || (ev.status === "no_target" ? "No new skill was needed: an existing skill covers this assay." : "No skill was composed.");
+    out.maker = { sub: "the skills it composed", short: `<p>${esc(status)}</p>${items.length ? `<ul>${items.join("")}</ul>` : ""}`,
+                  full: d.skills.map((sk) => `<h3>${esc(sk.name)}</h3>${sk.html}`).join("") };
+  }
+  if (d.plan !== null) {
+    const body = parseHtml(d.plan);
+    let heads = [...body.querySelectorAll(HEADING)].map((h) => h.textContent.trim()).filter((t) => /^step\s*\d+/i.test(t));
+    if (!heads.length) heads = [...body.querySelectorAll("h2,h3")].map((h) => h.textContent.trim());
+    const shown = heads.slice(0, 8).map((t) => `<li>${esc(clipText(t.replace(/^step\s*\d+\s*[:.\-–—]?\s*/i, ""), 110))}</li>`);
+    const more = heads.length - 8;
+    const reqs = Array.isArray(d.requests) ? d.requests : [];
+    const names = reqs.map((r) => (r && typeof r === "object") ? (r.name || r.method || r.capability || r.request || JSON.stringify(r)) : String(r));
+    const reqLine = Array.isArray(d.requests)
+      ? (reqs.length ? `Asked for ${plural(reqs.length, "method")} not installed: ${esc(clipText(names.join("; "), 200))}.` : "Needs no method that is not already installed.")
+      : "";
+    out.planner = { sub: "the plan it wrote", short: `${shown.length ? `<ol>${shown.join("")}${more > 0 ? `<li class="muted">and ${more} more steps</li>` : ""}</ol>` : firstParagraph(body)}${reqLine ? `<p>${reqLine}</p>` : ""}`,
+                    full: d.plan };
+  }
+  const m = d.method;
+  if (m && m.status !== "no_request") {
+    const installed = m.install_status === "ok" || m.install_status === "installed";
+    const head = m.chosen
+      ? `<b>${esc(m.chosen)}</b> was chosen and ${installed ? "installed" : `its installation ended with status "${esc(m.install_status || m.status || "")}"`}${m.import_name ? ` (import name <code>${esc(m.import_name)}</code>)` : ""}.`
+      : `No method was installed (status: ${esc(m.status || "")}${m.error ? `; ${esc(m.error)}` : ""}).`;
+    const n = (m.candidates || []).length;
+    out.scout = { sub: "the method it found",
+                  short: `<p>${head}${n ? ` ${plural(n, "candidate")} were ranked.` : ""}</p>${m.choice_reason ? `<p>${esc(clipText(m.choice_reason, 260))}</p>` : ""}`,
+                  full: null };
+  }
+  return out;
+}
+
+function renderStageCards(view, d) {
+  const timeline = $("#timeline");
+  const sums = stageSummaries(view, d);
+  for (const [key, sm] of Object.entries(sums)) {
+    const group = timeline.querySelector(`.stage-group[data-key="${key}"]`);
+    if (!group || !sm.short) continue;
+    let card = group.nextElementSibling;
+    if (!(card && card.classList.contains("k-summary") && card.dataset.key === key)) {
+      card = el(`<div class="entry k-summary"><div class="sum-head"><b></b><span class="muted sub"></span>
+        <span class="sum-links"><button class="link sum-more" type="button" hidden>Show all</button>
+        <button class="link sum-open" type="button">Open in Discovery</button></span></div>
+        <div class="md sum-body"></div><div class="md sum-full" hidden></div></div>`);
+      card.dataset.key = key;
+      group.after(card);
+      const more = card.querySelector(".sum-more"), body = card.querySelector(".sum-body"), full = card.querySelector(".sum-full");
+      more.addEventListener("click", () => {
+        const open = full.hidden; full.hidden = !open; body.hidden = open;
+        more.textContent = open ? "Show less" : "Show all";
+      });
+      card.querySelector(".sum-open").addEventListener("click", () => selectTab("discovery"));
+    }
+    const sig = sm.short + (sm.full || "").length;
+    if (card.dataset.sig === sig) continue;
+    card.dataset.sig = sig;
+    card.querySelector("b").textContent = GROUPS[key];
+    card.querySelector(".sub").textContent = sm.sub;
+    card.querySelector(".sum-body").innerHTML = sm.short;
+    const full = card.querySelector(".sum-full"), more = card.querySelector(".sum-more");
+    if (sm.full && sm.full.length > sm.short.length + 80) { full.innerHTML = sm.full; more.hidden = false; }
+    else { full.innerHTML = ""; more.hidden = true; }
+  }
+}
+
+// When the run has ended, the main agent's own product: the opening of analysis.md.
+async function renderFinalCard(view) {
+  if (view.finalCard || view.info.active) return;
+  const f = (view.info.files || []).find((x) => /(^|\/)analysis\.md$/i.test(x.path));
+  if (!f) return;
+  view.finalCard = true;
+  let text;
+  try { text = await (await fetch(fileUrl(view.id, f.path))).text(); } catch (e) { return; }
+  if (app.view !== view) return;
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const title = (lines.find((l) => /^#\s/.test(l)) || "").replace(/^#+\s*/, "");
+  const bodyLines = lines.filter((l) => !/^#/.test(l) && !/^-{3,}$/.test(l)).slice(0, 6)
+    .map((l) => `<p>${esc(clipText(l.replace(/^[-*]\s+/, "").replace(/\*\*/g, ""), 200))}</p>`).join("");
+  const card = el(`<div class="entry k-summary final"><div class="sum-head"><b>ConTexture</b><span class="muted sub">${esc(title || "analysis.md")}</span>
+    <span class="sum-links"><a class="link" href="${fileUrl(view.id, f.path)}" target="_blank" rel="noopener">Open analysis.md</a></span></div>
+    <div class="md sum-body">${bodyLines}</div></div>`);
+  $("#timeline").appendChild(card);
+}
+
 // ------------------------------------------------------------------ the Discovery tab
 
 function renderDiscovery(view, d) {
   const r = view.info;
+  renderStageCards(view, d);
   const sig = JSON.stringify(d) + (view.analysisStarted ? "A" : "") + r.status;
   if (sig === view.discSig) return;
   view.discSig = sig;
