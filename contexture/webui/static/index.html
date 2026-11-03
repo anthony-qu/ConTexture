@@ -34,8 +34,19 @@
         <form id="new-form" class="card form" autocomplete="off">
           <label class="field">
             <span class="label">Data</span>
-            <input id="f-data" name="data_path" type="text" spellcheck="false" required
-                   placeholder="/path/to/data.h5mu, or a folder">
+            <div class="pick-row">
+              <input id="f-data" name="data_path" type="text" spellcheck="false" required
+                     placeholder="/path/to/data.h5mu, or a folder">
+              <span class="pick-btns" id="pick-btns" hidden>
+                <button class="btn btn-ghost btn-sm" type="button" id="pick-file" data-kind="file"
+                        title="Open the computer's file window and put the chosen file's path here">
+                  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h3.2l1.3 1.5H13v6.5H3z"/></svg>
+                  Choose file
+                </button>
+                <button class="btn btn-ghost btn-sm" type="button" id="pick-folder" data-kind="folder"
+                        title="Choose a folder of data files instead">Folder</button>
+              </span>
+            </div>
           </label>
           <label class="field">
             <span class="label">Goal</span>

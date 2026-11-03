@@ -31,9 +31,10 @@ contexture
 
 This opens the page in your browser. The first time, a **Model keys** panel asks for an API key
 from a model provider (Anthropic, OpenAI, DeepSeek, Google Gemini or another). The key is saved
-on your computer where only you can read it. Then you give the path to your data (an `.h5ad` or
-`.h5mu` file), describe the goal, and watch each step as it runs: the code, its output and the
-figures.
+on your computer where only you can read it. Then you pick your data (an `.h5ad` or `.h5mu`
+file, or a folder of them) with the **Choose file** button, which opens your computer's own file
+window, or type its path; describe the goal; and watch each step as it runs: the code, its
+output and the figures. The data is read where it is, never copied.
 
 Each analysis gets its own folder in `contexture-runs/`, inside the folder you started
 `contexture` from. An analysis keeps going if you close the browser.

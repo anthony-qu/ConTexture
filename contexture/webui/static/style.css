@@ -402,3 +402,15 @@ table.files a { text-decoration: none; }
 .cands th { font-size: 12px; color: var(--muted); font-weight: 600; }
 .cands td.num, .cands th:nth-child(3), .cands th:nth-child(4), .cands th:nth-child(5) { text-align: right; white-space: nowrap; }
 .cands tr.chosen td { background: var(--accent-soft); }
+
+/* ---- the Data field's "Choose file" buttons (the server opens the computer's own window) */
+.pick-row { display: flex; gap: 8px; align-items: stretch; }
+.pick-row input { flex: 1 1 auto; min-width: 0; }
+.pick-btns { display: flex; gap: 6px; flex: 0 0 auto; }
+.pick-btns .btn-sm { height: auto; padding: 0 12px; }
+.pick-btns button:disabled { opacity: 0.6; cursor: default; }
+@media (max-width: 560px) {
+  .pick-row { flex-wrap: wrap; }
+  .pick-btns { width: 100%; }
+  .pick-btns .btn-sm { height: 36px; flex: 1; }
+}

@@ -3,6 +3,7 @@
 "use strict";
 
 const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => [...document.querySelectorAll(sel)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -317,7 +318,31 @@ async function loadConfig(first) {
     $("#disc-env").textContent = c.discovery.explain || "";
     $("#disc-env").classList.toggle("missing", !c.discovery.isolated);
   }
+  $("#pick-btns").hidden = !c.can_pick;    // no screen (a remote server): type the path
   if (first && !c.keys.length) openKeys();
+}
+
+// The computer's own file window, opened by the server, fills the Data field with the
+// chosen path. A page may not learn a path from the browser's own file dialog.
+async function pickPath(kind) {
+  const btn = $(kind === "folder" ? "#pick-folder" : "#pick-file"), err = $("#form-error");
+  const label = btn.innerHTML;
+  err.hidden = true;
+  $$(".pick-btns button").forEach((b) => { b.disabled = true; });
+  btn.innerHTML = "Choosing…";
+  try {
+    const { path } = await api("/api/pick", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, start: $("#f-data").value }),
+    });
+    if (path) { $("#f-data").value = path; $("#f-goal").focus(); }
+  } catch (e) {
+    err.textContent = e.message;
+    err.hidden = false;
+  } finally {
+    btn.innerHTML = label;
+    $$(".pick-btns button").forEach((b) => { b.disabled = false; });
+  }
 }
 
 // The two switches: skill evolution runs inside method discovery, so it is offered only then.
@@ -641,6 +666,8 @@ function selectTab(name) {
 }
 
 // ------------------------------------------------------------------ events
+
+$$(".pick-btns button").forEach((b) => b.addEventListener("click", () => pickPath(b.dataset.kind)));
 
 $("#new-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();

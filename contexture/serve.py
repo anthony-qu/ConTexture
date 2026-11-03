@@ -51,8 +51,10 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
+from starlette.concurrency import run_in_threadpool
+
 from . import discoveryenv, keys
-from .webui import transcript
+from .webui import filepick, transcript
 
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "webui"
@@ -219,7 +221,27 @@ def _config(request: Request):
                          "keys": providers,
                          "runs_dir": str(Settings.runs_dir),
                          "max_concurrent": Settings.max_concurrent, "running": running,
-                         "discovery": _discovery_status()})
+                         "discovery": _discovery_status(),
+                         "can_pick": filepick.available()})
+
+
+async def _pick(request: Request):
+    """Open the computer's own file window and answer with the chosen path.
+
+    The window opens on the computer the server runs on, which is the browser's computer in
+    the normal case. `path` is null when the user cancels.
+    """
+    if not filepick.available():
+        return JSONResponse({"error": "This computer has no screen to open a file window on. "
+                                      "Type or paste the path instead."}, status_code=400)
+    body = await request.json()
+    kind = "folder" if body.get("kind") == "folder" else "file"
+    start = str(body.get("start") or "")[:4096]
+    try:
+        path = await run_in_threadpool(filepick.pick, kind, start)
+    except Exception as exc:  # the window failed, not the user
+        return JSONResponse({"error": str(exc)}, status_code=500)
+    return JSONResponse({"path": path})
 
 
 _disc_status: tuple[float, dict] = (0.0, {})
@@ -518,6 +540,7 @@ def build_app() -> Starlette:
     routes = [
         Route("/", _index),
         Route("/api/config", _config),
+        Route("/api/pick", _pick, methods=["POST"]),
         Route("/api/keys", _keys, methods=["GET"]),
         Route("/api/keys", _save_key, methods=["POST"]),
         Route("/api/keys/{var}", _remove_key, methods=["DELETE"]),
