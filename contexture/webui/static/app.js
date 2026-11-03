@@ -188,6 +188,8 @@ const STAGE_NAMES = {
   SCOUT: "Method discovery agent", DISCOVERY: "Method discovery",
 };
 
+function plural(n, word) { return `${n} ${word}${n === 1 ? "" : "s"}`; }
+
 function who(agent) {
   if (!agent) return "";
   const spec = /special/i.test(agent);
@@ -260,13 +262,18 @@ function renderSection(s, view) {
     case "CODE": case "REPORT-CODE": case "PLAN-CODE": {
       // REPORT-CODE and PLAN-CODE are the data reporter's and the planner's own code, run on
       // the data before the analysis; they are not numbered with the analysis cells.
+      // A code cell and the output it prints are one folded row in the Workbench: the row
+      // says what ran and what came back, and opens on a click to show both.
       const stage = s.kind === "REPORT-CODE" ? "Data reporter" : s.kind === "PLAN-CODE" ? "Planner" : "";
       if (!stage) view.cell += 1;
       const lines = t.split("\n").length;
       const long = lines > 26;
-      const node = el(`<div class="entry k-code${stage ? " pre" : ""}"><div class="cell${long ? " long" : ""}"><div class="cell-head">
-        <span>${stage ? esc(stage) : `In [${view.cell}]`}</span>${who(s.agent)}</div><pre><code>${highlight(t)}</code></pre>
-        ${long ? `<button class="more" type="button">Show all ${lines} lines</button>` : ""}</div></div>`);
+      const node = el(`<details class="entry k-code cell-fold${stage ? " pre" : ""}"><summary>
+        <span class="idx">${stage ? esc(stage) : `In [${view.cell}]`}</span>${who(s.agent)}
+        <span class="sum">${plural(lines, "line")} of code</span><span class="state running">running</span></summary>
+        <div class="cell${long ? " long" : ""}"><pre><code>${highlight(t)}</code></pre>
+        ${long ? `<button class="more" type="button">Show all ${lines} lines</button>` : ""}</div></details>`);
+      node.dataset.lines = lines;
       if (long) {
         const cell = node.querySelector(".cell"), btn = node.querySelector(".more");
         btn.addEventListener("click", () => {
@@ -279,13 +286,24 @@ function renderSection(s, view) {
     case "OUTPUT": case "REPORT-OUTPUT": case "PLAN-OUTPUT": {
       const err = /Traceback \(most recent call last\)|^\w*Error\b/m.test(t);
       const empty = !t.trim();
-      const node = el(`<div class="entry k-output out${err ? " err" : ""}${empty ? " empty" : ""}">
+      const n = empty ? 0 : t.trim().split("\n").length;
+      const out = el(`<div class="out${err ? " err" : ""}${empty ? " empty" : ""}">
         <pre>${empty ? "(no printed output)" : esc(t)}</pre></div>`);
       const prev = view.last;
-      if (prev && prev.classList.contains("k-code")) {
+      if (prev && prev.classList.contains("cell-fold") && !prev.querySelector(".out")) {
+        // Joins the cell that printed it; the row's summary now tells the result.
         prev.querySelector(".cell").classList.add("joined");
-        if (err) prev.classList.add("k-error");
+        prev.appendChild(out);
+        const state = prev.querySelector(".state");
+        state.classList.remove("running");
+        if (err) { prev.classList.add("k-error"); state.classList.add("err"); state.textContent = "failed"; }
+        else state.textContent = empty ? "nothing printed" : `${plural(n, "line")} printed`;
+        return null;
       }
+      const node = el(`<details class="entry k-output cell-fold${err ? " k-error" : ""}"><summary>
+        <span class="idx">Output</span><span class="sum">${empty ? "nothing printed" : plural(n, "line") + " printed"}</span>
+        ${err ? `<span class="state err">failed</span>` : ""}</summary></details>`);
+      node.appendChild(out);
       return node;
     }
     case "AGENT":
@@ -603,6 +621,12 @@ async function tick(view) {
     view.last = node;
   }
   if (!info.active && view.group) closeGroup(view);
+  if (!info.active) {
+    // The run ended: a cell still waiting for its output will never get one.
+    for (const st of timeline.querySelectorAll(".cell-fold .state.running")) {
+      st.classList.remove("running"); st.textContent = "no output recorded";
+    }
+  }
   view.total = log.total;
   if (log.sections.length) {
     if (follow) window.scrollTo({ top: document.documentElement.scrollHeight });

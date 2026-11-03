@@ -33,8 +33,11 @@ This opens the page in your browser. The first time, a **Model keys** panel asks
 from a model provider (Anthropic, OpenAI, DeepSeek, Google Gemini or another). The key is saved
 on your computer where only you can read it. Then you pick your data (an `.h5ad` or `.h5mu`
 file, or a folder of them) with the **Choose file** button, which opens your computer's own file
-window, or type its path; describe the goal; and watch each step as it runs: the code, its
-output and the figures. The data is read where it is, never copied.
+window, or type its path; describe the goal; and watch the **Workbench** as it runs. It shows
+what ConTexture says at each step; every code cell it runs is folded into one line with its
+printed output, and a click opens it. The figures and the files it writes have their own tabs,
+and the **Transcript** button in the corner opens the raw log. The data is read where it is,
+never copied.
 
 The three dots in the form's corner hold the turn budget, the agent layout (adaptive, flat or
 orchestrated) and the model for the discovery agents; the defaults are the paper's.
