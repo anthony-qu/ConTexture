@@ -9,18 +9,19 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
 
 // ------------------------------------------------------------------ background
 
-// A hexagonal lattice of small round spots behind the page, packed as on a Visium slide: every
-// other row shifted by half the pitch, rows the pitch times sqrt(3)/2 apart. Spots near the
-// cursor light up in the logo's purple and blue and fade back over about a second; with the
-// cursor away, nothing moves and nothing is drawn.
+// A honeycomb behind the page: hexagonal cells drawn as thin outlines in a colour a shade off
+// the page. Cells near the cursor fill with the logo's purple and blue and fade back over
+// about a second; with the cursor away, nothing moves and nothing is drawn.
 function startLattice() {
   const canvas = $("#bg-lattice");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const STEP = 30, ROW = STEP * Math.sqrt(3) / 2, RADIUS = 1.8, REACH = 180, DECAY = 0.93;
+  // Pointy-top hexagons: R is the centre-to-corner distance; cells are W wide, rows ROW apart,
+  // and every other row is shifted by half a cell.
+  const R = 22, W_CELL = Math.sqrt(3) * R, ROW = 1.5 * R, REACH = 190, DECAY = 0.93;
   let W = 0, H = 0, cols = 0, rows = 0, energy = new Float32Array(0);
-  let mouse = null, running = false, colours = null;
+  let mouse = null, running = false, colours = null, grid = null;
 
   // The page's colours, re-read whenever the theme changes.
   function palette() {
@@ -32,40 +33,61 @@ function startLattice() {
     colours = { base: rgb("--lattice"), a: rgb("--accent"), b: rgb("--blue") };
   }
   const mix = (p, q, t) => p.map((v, i) => Math.round(v + (q[i] - v) * t));
+  const centre = (i, j) => [i * W_CELL + (j % 2 ? W_CELL / 2 : 0), j * ROW + R];
+
+  function hexPath(path, x, y, r) {
+    for (let k = 0; k < 6; k++) {
+      const a = Math.PI / 6 + (k * Math.PI) / 3;        // pointy top
+      const px = x + r * Math.cos(a), py = y + r * Math.sin(a);
+      if (k === 0) path.moveTo(px, py); else path.lineTo(px, py);
+    }
+    path.closePath();
+  }
+
+  // The still honeycomb is drawn once per size and theme into an offscreen canvas.
+  function drawGrid() {
+    const dpr = window.devicePixelRatio || 1;
+    grid = document.createElement("canvas");
+    grid.width = canvas.width; grid.height = canvas.height;
+    const g = grid.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const path = new Path2D();
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) { const [x, y] = centre(i, j); hexPath(path, x, y, R); }
+    const [r, gg, b] = colours.base;
+    g.strokeStyle = `rgb(${r},${gg},${b})`; g.lineWidth = 1; g.stroke(path);
+  }
 
   function resize() {
     const dpr = window.devicePixelRatio || 1;
     W = window.innerWidth; H = window.innerHeight;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    cols = Math.ceil(W / STEP) + 2; rows = Math.ceil(H / ROW) + 2;
+    cols = Math.ceil(W / W_CELL) + 2; rows = Math.ceil(H / ROW) + 2;
     energy = new Float32Array(cols * rows);
+    drawGrid();
     draw();
   }
 
   function draw() {
     if (!colours) palette();
     ctx.clearRect(0, 0, W, H);
-    const [br, bg, bb] = colours.base;
+    ctx.drawImage(grid, 0, 0, W, H);
     let alive = false;
     for (let j = 0; j < rows; j++) {
       for (let i = 0; i < cols; i++) {
-        const x = i * STEP + (j % 2 ? STEP / 2 : 0), y = j * ROW + ROW / 2, k = j * cols + i;
+        const [x, y] = centre(i, j), k = j * cols + i;
         let e = energy[k];
         if (mouse) {
           const d = Math.hypot(x - mouse.x, y - mouse.y);
           if (d < REACH) { const t = 1 - d / REACH; e = Math.max(e, t * t); }
         }
-        if (e > 0.01) { alive = true; energy[k] = e * DECAY; } else { energy[k] = 0; e = 0; }
-        if (e > 0) {
-          // purple at the top left, blue at the bottom right, as in the logo's gradient
-          const [r, g, b] = mix(colours.a, colours.b, (x / W + y / H) / 2);
-          ctx.fillStyle = `rgba(${r},${g},${b},${0.15 + 0.75 * e})`;
-          ctx.beginPath(); ctx.arc(x, y, RADIUS + 1.6 * e, 0, Math.PI * 2); ctx.fill();
-        } else {
-          ctx.fillStyle = `rgb(${br},${bg},${bb})`;
-          ctx.beginPath(); ctx.arc(x, y, RADIUS, 0, Math.PI * 2); ctx.fill();
-        }
+        if (e > 0.01) { alive = true; energy[k] = e * DECAY; } else { energy[k] = 0; continue; }
+        // purple at the top left, blue at the bottom right, as in the logo's gradient
+        const [r, g, b] = mix(colours.a, colours.b, (x / W + y / H) / 2);
+        const path = new Path2D();
+        hexPath(path, x, y, R - 1);
+        ctx.fillStyle = `rgba(${r},${g},${b},${0.04 + 0.3 * e})`; ctx.fill(path);
+        ctx.strokeStyle = `rgba(${r},${g},${b},${0.2 + 0.7 * e})`; ctx.lineWidth = 1.2; ctx.stroke(path);
       }
     }
     return alive;
@@ -82,7 +104,7 @@ function startLattice() {
   palette();
   resize();
   window.addEventListener("resize", resize);
-  new MutationObserver(() => { palette(); draw(); })
+  new MutationObserver(() => { palette(); drawGrid(); draw(); })
     .observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   if (still) return;
   window.addEventListener("mousemove", (ev) => { mouse = { x: ev.clientX, y: ev.clientY }; wake(); }, { passive: true });
