@@ -540,15 +540,22 @@ function selectTab(name) {
 
 $$(".pick-btns button").forEach((b) => b.addEventListener("click", () => pickPath(b.dataset.kind)));
 
-// Discovery mode: the card itself shows the change (gradient edge, the stages it adds, the
-// button's wording), so the page needs no explanation text.
+// Discovery mode: the card itself shows the change (gradient edge, the button's wording), so
+// the page needs no explanation text.
 function syncDiscovery() {
   const on = $("#f-discovery").checked;
   $("#new-form").classList.toggle("discovery", on);
-  $("#disc-strip").hidden = !on;
   $("#f-start-label").textContent = on ? "Start discovery" : "Start analysis";
 }
 $("#f-discovery").addEventListener("change", syncDiscovery);
+
+// Light or dark: the choice is kept in this browser; without one the system's setting is used
+// (set before the first paint by the small script in the page head).
+$("#theme-btn").addEventListener("click", () => {
+  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("contexture-theme", next); } catch (e) { /* private window */ }
+});
 
 $("#new-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
