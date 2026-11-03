@@ -446,6 +446,23 @@ table.files a { text-decoration: none; }
 .switch input:checked + .track::after { transform: translateX(16px); }
 .switch input:focus-visible + .track { box-shadow: 0 0 0 3px var(--accent-soft); }
 .switch input:checked ~ .switch-label { color: var(--ink); }
+.form-head { position: relative; gap: 10px; }
+.form-head .switch { margin-left: auto; }
+.more-btn {
+  position: relative; width: 30px; height: 30px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; border: 1px solid transparent; background: none; color: var(--muted); cursor: pointer;
+}
+.more-btn:hover, .more-btn.open { background: var(--surface-2); color: var(--ink); }
+.more-btn svg { width: 16px; height: 16px; fill: currentColor; }
+.more-btn .dot { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; background: var(--accent); }
+.more-pop {
+  position: absolute; right: 0; top: calc(100% + 10px); z-index: 5; width: min(380px, 100%);
+  display: flex; flex-direction: column; gap: 16px; padding: 18px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow);
+}
+.more-pop .hint { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.more-pop .field.off { opacity: 0.5; }
+#f-turns { font-family: var(--mono); font-size: 13.5px; width: 120px; }
 #new-form { transition: box-shadow 0.25s; }
 #new-form.discovery {
   border-color: transparent;

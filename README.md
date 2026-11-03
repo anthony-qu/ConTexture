@@ -36,6 +36,9 @@ file, or a folder of them) with the **Choose file** button, which opens your com
 window, or type its path; describe the goal; and watch each step as it runs: the code, its
 output and the figures. The data is read where it is, never copied.
 
+The three dots in the form's corner hold the turn budget, the agent layout (adaptive, flat or
+orchestrated) and the model for the discovery agents; the defaults are the paper's.
+
 Each analysis gets its own folder in `contexture-runs/`, inside the folder you started
 `contexture` from. An analysis keeps going if you close the browser.
 

@@ -148,6 +148,7 @@ def _status(run: Path) -> dict:
         note = "The turn budget ran out before the agent said it was done."
     return {"id": run.name, "goal": cfg.get("goal", ""), "data_path": cfg.get("data_path", ""),
             "model": cfg.get("model", ""), "max_turns": cfg.get("max_turns"),
+            "topology": cfg.get("topology", "adaptive"),
             "discovery": bool(cfg.get("discovery")), "evolve": bool(cfg.get("evolve")),
             "discovery_model": cfg.get("discovery_model") or "",
             "created": cfg.get("created"), "ended": end_time, "status": status,
@@ -319,6 +320,9 @@ async def _start(request: Request):
     if not 1 <= max_turns <= 500:
         return JSONResponse({"error": "The turn budget must be between 1 and 500."},
                             status_code=400)
+    topology = str(body.get("topology") or "adaptive").strip()
+    if topology not in ("adaptive", "flat", "orchestrated"):
+        return JSONResponse({"error": "That agent layout is not one of the three."}, status_code=400)
     discovery = bool(body.get("discovery"))
     evolve = bool(body.get("evolve"))
     discovery_model = str(body.get("discovery_model") or "").strip()
@@ -344,7 +348,7 @@ async def _start(request: Request):
         run = Settings.runs_dir / rid
         run.mkdir(parents=True)
         cfg = {"goal": goal, "data_path": str(data_path), "model": model,
-               "max_turns": max_turns, "created": time.time()}
+               "max_turns": max_turns, "topology": topology, "created": time.time()}
         if discovery:
             cfg.update({"discovery": True, "evolve": evolve,
                         "discovery_model": discovery_model or None})

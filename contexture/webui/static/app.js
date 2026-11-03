@@ -391,6 +391,28 @@ function renderModelChoices(c) {
   sel.value = offered ? current : (groups.length ? c.default_model : OTHER);
   if (!offered && groups.length) $("#f-model-other").value = "";
   syncModelOther();
+  // The same choices for the discovery agents, with "same as the analysis model" first.
+  const dsel = $("#f-dmodel"), dcur = dsel.value;
+  dsel.innerHTML = `<option value="">Same as the analysis model</option>` + groups.map((g) =>
+    `<optgroup label="${esc(g.provider)}">${g.models.map((m) => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join("")}</optgroup>`).join("");
+  dsel.value = [...dsel.options].some((o) => o.value === dcur) ? dcur : "";
+  syncMoreDot();
+}
+
+// The three-dots menu in the form's corner: the turn budget, the agent layout and the model
+// for the discovery agents. A dot on the button shows when any of them is off its default.
+function syncMoreDot() {
+  const changed = String($("#f-turns").value) !== "30" || $("#f-topology").value !== "adaptive" ||
+    ($("#f-discovery").checked && $("#f-dmodel").value !== "");
+  $("#more-dot").hidden = !changed;
+  $("#f-dmodel-field").classList.toggle("off", !$("#f-discovery").checked);
+}
+function toggleMore(open) {
+  const pop = $("#more-pop"), btn = $("#more-btn");
+  const show = open === undefined ? pop.hidden : open;
+  pop.hidden = !show;
+  btn.setAttribute("aria-expanded", String(show));
+  btn.classList.toggle("open", show);
 }
 function syncModelOther() {
   const other = $("#f-model").value === OTHER;
@@ -628,6 +650,7 @@ function renderMeta(view) {
     `<span>${esc(duration(end - r.created))}</span>`,
     `<span>${u.model_calls || 0} model calls · ${tokens(u.input_tokens || 0)} tokens in · ${tokens(u.output_tokens || 0)} out</span>`,
     `<span>turn budget ${esc(r.max_turns)}</span>`,
+    r.topology && r.topology !== "adaptive" ? `<span>${esc(r.topology)} layout</span>` : "",
     r.discovery ? `<span>discovery mode${r.evolve ? "" : " (method discovery only)"}${
       r.discovery_model ? ` · discovery agents on <b>${esc(r.discovery_model)}</b>` : ""}</span>` : "",
   ].join("");
@@ -733,9 +756,15 @@ function syncDiscovery() {
   const on = $("#f-discovery").checked;
   $("#new-form").classList.toggle("discovery", on);
   $("#f-start-label").textContent = on ? "Start discovery" : "Start analysis";
+  syncMoreDot();
 }
 $("#f-discovery").addEventListener("change", syncDiscovery);
 $("#f-model").addEventListener("change", syncModelOther);
+$("#more-btn").addEventListener("click", (ev) => { ev.stopPropagation(); toggleMore(); });
+$("#more-pop").addEventListener("click", (ev) => ev.stopPropagation());
+document.addEventListener("click", () => { if (!$("#more-pop").hidden) toggleMore(false); });
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !$("#more-pop").hidden) toggleMore(false); });
+["#f-turns", "#f-topology", "#f-dmodel"].forEach((id) => $(id).addEventListener("input", syncMoreDot));
 
 // Light or dark: the choice is kept in this browser; without one the system's setting is used
 // (set before the first paint by the small script in the page head).
@@ -759,8 +788,9 @@ $("#new-form").addEventListener("submit", async (ev) => {
         model: chosenModel(),
         // One switch turns method discovery and skill evolution on together; the discovery
         // agents use the analysis model (the terminal's --discovery-model can set another).
+        max_turns: $("#f-turns").value, topology: $("#f-topology").value,
         discovery: $("#f-discovery").checked, evolve: $("#f-discovery").checked,
-        discovery_model: "",
+        discovery_model: $("#f-discovery").checked ? $("#f-dmodel").value : "",
       }),
     });
     $("#f-goal").value = "";

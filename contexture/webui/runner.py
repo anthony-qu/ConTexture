@@ -29,6 +29,8 @@ def main(run_dir: str) -> int:
            "--output-dir", str(run),
            "--model", cfg["model"],
            "--max-turns", str(cfg["max_turns"])]
+    if cfg.get("topology") in ("flat", "orchestrated"):
+        cmd += ["--topology", cfg["topology"]]
     if cfg.get("discovery"):
         cmd.append("--discovery")
         if cfg.get("evolve"):
