@@ -566,7 +566,7 @@ async function refreshList() {
         <span class="rl-goal">${esc(r.goal.split("\n")[0])}</span>
         <span class="rl-meta">${esc(STATUS_TEXT[r.status] || r.status)} · ${esc(ago(r.created))} · ${esc(r.model.split("/").pop())}</span>
       </a>${r.active ? "" : `<a class="rl-dl" href="/api/runs/${esc(r.id)}/export" download title="Save this session as one HTML file" aria-label="Save this session as an HTML file">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v8M4.8 7.3L8 10.5l3.2-3.2M3 12.5h10"/></svg>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v9.3M4.2 7.5L8 11.3l3.8-3.8M2.8 13.6h10.4"/></svg>
       </a>`}<button class="rl-del" type="button" title="Delete this session and its folder" aria-label="Delete this session">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5M6.7 7v4M9.3 7v4"/></svg>
       </button></li>`).join("") : `<li class="empty">No sessions yet.</li>`;
@@ -1106,3 +1106,45 @@ if (STATIC) {
 loadConfig(true).catch(() => {});
 route();
 app.listTimer = setInterval(refreshList, 4000);
+
+// ------------------------------------------------------------------ sidebar width
+// The handle on the sidebar's right edge is dragged with the pointer; the width is kept between
+// 200 and 560 px, remembered in the browser, and a double-click puts the default back.
+(function () {
+  const SIDE_MIN = 200, SIDE_MAX = 560, SIDE_DEFAULT = 264, SIDE_KEY = "contexture-sidebar-width";
+  const handle = $("#side-resize");
+  const shell = document.querySelector(".shell");
+  if (!handle || !shell) return;
+  const apply = (w) => shell.style.setProperty("--side-w", `${Math.round(w)}px`);
+  try {
+    const saved = parseInt(localStorage.getItem(SIDE_KEY), 10);
+    if (saved >= SIDE_MIN && saved <= SIDE_MAX) apply(saved);
+  } catch (e) { /* private window */ }
+  let startX = 0, startW = 0;
+  handle.addEventListener("pointerdown", (ev) => {
+    if (ev.button !== 0) return;
+    startX = ev.clientX;
+    startW = handle.parentElement.getBoundingClientRect().width;
+    handle.setPointerCapture(ev.pointerId);
+    handle.classList.add("dragging");
+    document.body.classList.add("resizing");
+    ev.preventDefault();
+  });
+  handle.addEventListener("pointermove", (ev) => {
+    if (!handle.classList.contains("dragging")) return;
+    apply(Math.min(SIDE_MAX, Math.max(SIDE_MIN, startW + ev.clientX - startX)));
+  });
+  const stop = (ev) => {
+    if (!handle.classList.contains("dragging")) return;
+    handle.classList.remove("dragging");
+    document.body.classList.remove("resizing");
+    try { handle.releasePointerCapture(ev.pointerId); } catch (e) { /* already released */ }
+    try { localStorage.setItem(SIDE_KEY, String(Math.round(handle.parentElement.getBoundingClientRect().width))); } catch (e) { /* private window */ }
+  };
+  handle.addEventListener("pointerup", stop);
+  handle.addEventListener("pointercancel", stop);
+  handle.addEventListener("dblclick", () => {
+    apply(SIDE_DEFAULT);
+    try { localStorage.removeItem(SIDE_KEY); } catch (e) { /* private window */ }
+  });
+})();
