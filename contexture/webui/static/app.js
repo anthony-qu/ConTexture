@@ -10,8 +10,10 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
 // ------------------------------------------------------------------ background
 
 // A honeycomb behind the page: hexagonal cells drawn as thin outlines in a colour a shade off
-// the page. Cells near the cursor fill with the logo's purple and blue and fade back over
-// about half a second; with the cursor away, nothing moves and nothing is drawn.
+// the page. A few small patches of neighbouring cells breathe slowly in the logo's purple and
+// blue, like spatial domains on a section: each patch brightens and dims twice over about
+// twenty seconds, its centre brightest, then fades out and a new patch appears elsewhere.
+// Nothing follows the cursor.
 function startLattice() {
   const canvas = $("#bg-lattice");
   if (!canvas) return;
@@ -19,9 +21,9 @@ function startLattice() {
   const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // Pointy-top hexagons: R is the centre-to-corner distance; cells are W wide, rows ROW apart,
   // and every other row is shifted by half a cell.
-  const R = 22, W_CELL = Math.sqrt(3) * R, ROW = 1.5 * R, REACH = 190, DECAY = 0.86;   // about half a second
-  let W = 0, H = 0, cols = 0, rows = 0, energy = new Float32Array(0);
-  let mouse = null, running = false, colours = null, grid = null;
+  const R = 22, W_CELL = Math.sqrt(3) * R, ROW = 1.5 * R;
+  const PATCHES = 4, BREATH = 9000, BREATHS = 2, GAP = [1500, 5000];   // milliseconds
+  let W = 0, H = 0, cols = 0, rows = 0, colours = null, grid = null, patches = [], last = 0;
 
   // The page's colours, re-read whenever the theme changes.
   function palette() {
@@ -34,6 +36,11 @@ function startLattice() {
   }
   const mix = (p, q, t) => p.map((v, i) => Math.round(v + (q[i] - v) * t));
   const centre = (i, j) => [i * W_CELL + (j % 2 ? W_CELL / 2 : 0), j * ROW + R];
+  const neighbours = (i, j) => {
+    const o = j % 2 ? 1 : -1;
+    return [[i - 1, j], [i + 1, j], [i, j - 1], [i, j + 1], [i + o, j - 1], [i + o, j + 1]]
+      .filter(([a, b]) => a >= 0 && a < cols && b >= 0 && b < rows);
+  };
 
   function hexPath(path, x, y, r) {
     for (let k = 0; k < 6; k++) {
@@ -57,59 +64,76 @@ function startLattice() {
     g.strokeStyle = `rgb(${r},${gg},${b})`; g.lineWidth = 1; g.stroke(path);
   }
 
+  // A patch: a seed cell and 6-14 neighbours grown from it, each weighted by its distance
+  // from the seed; born at `born`, it lives BREATHS breaths and is then replaced.
+  function makePatch(now) {
+    const si = Math.floor(Math.random() * cols), sj = Math.floor(Math.random() * rows);
+    const [sx, sy] = centre(si, sj);
+    const cells = new Map([[`${si},${sj}`, [si, sj]]]);
+    const frontier = [[si, sj]];
+    const size = 6 + Math.floor(Math.random() * 9);
+    for (let n = 0; n < size; n++) {
+      const [a, b] = frontier[Math.floor(Math.random() * frontier.length)];
+      const free = neighbours(a, b).filter(([x, y]) => !cells.has(`${x},${y}`));
+      if (!free.length) continue;
+      const c = free[Math.floor(Math.random() * free.length)];
+      cells.set(`${c[0]},${c[1]}`, c); frontier.push(c);
+    }
+    const weighted = [...cells.values()].map(([i, j]) => {
+      const [x, y] = centre(i, j);
+      return { x, y, w: Math.max(0.35, 1 - Math.hypot(x - sx, y - sy) / (R * 4.5)) };
+    });
+    const born = now + GAP[0] + Math.random() * (GAP[1] - GAP[0]);
+    return { cells: weighted, born, dies: born + BREATH * BREATHS };
+  }
+
   function resize() {
     const dpr = window.devicePixelRatio || 1;
     W = window.innerWidth; H = window.innerHeight;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     cols = Math.ceil(W / W_CELL) + 2; rows = Math.ceil(H / ROW) + 2;
-    energy = new Float32Array(cols * rows);
+    const now = performance.now();
+    patches = Array.from({ length: PATCHES }, () => makePatch(now));
+    // Start the patches at different points of their lives, so they do not breathe in step.
+    patches.forEach((p, k) => { const shift = (k / PATCHES) * BREATH * BREATHS; p.born -= shift; p.dies -= shift; });
     drawGrid();
-    draw();
+    draw(now);
   }
 
-  function draw() {
+  function draw(now) {
     if (!colours) palette();
     ctx.clearRect(0, 0, W, H);
     ctx.drawImage(grid, 0, 0, W, H);
-    let alive = false;
-    for (let j = 0; j < rows; j++) {
-      for (let i = 0; i < cols; i++) {
-        const [x, y] = centre(i, j), k = j * cols + i;
-        let e = energy[k];
-        if (mouse) {
-          const d = Math.hypot(x - mouse.x, y - mouse.y);
-          if (d < REACH) { const t = 1 - d / REACH; e = Math.max(e, t * t); }
-        }
-        if (e > 0.01) { alive = true; energy[k] = e * DECAY; } else { energy[k] = 0; continue; }
+    patches.forEach((p, k) => {
+      if (now >= p.dies) { patches[k] = p = makePatch(now); }
+      if (now < p.born) return;
+      // One breath: 0 -> 1 -> 0 as a raised cosine, so it starts and ends without a step.
+      const breath = (1 - Math.cos((2 * Math.PI * (now - p.born)) / BREATH)) / 2;
+      for (const c of p.cells) {
+        const e = breath * c.w;
+        if (e < 0.02) continue;
         // purple at the top left, blue at the bottom right, as in the logo's gradient
-        const [r, g, b] = mix(colours.a, colours.b, (x / W + y / H) / 2);
+        const [r, g, b] = mix(colours.a, colours.b, (c.x / W + c.y / H) / 2);
         const path = new Path2D();
-        hexPath(path, x, y, R - 1);
-        ctx.fillStyle = `rgba(${r},${g},${b},${0.04 + 0.3 * e})`; ctx.fill(path);
-        ctx.strokeStyle = `rgba(${r},${g},${b},${0.2 + 0.7 * e})`; ctx.lineWidth = 1.2; ctx.stroke(path);
+        hexPath(path, c.x, c.y, R - 1);
+        ctx.fillStyle = `rgba(${r},${g},${b},${0.03 + 0.28 * e})`; ctx.fill(path);
+        ctx.strokeStyle = `rgba(${r},${g},${b},${0.12 + 0.6 * e})`; ctx.lineWidth = 1.2; ctx.stroke(path);
       }
-    }
-    return alive;
+    });
   }
 
-  function frame() {
-    running = draw();
-    if (running) requestAnimationFrame(frame);
-  }
-  function wake() {
-    if (!running) { running = true; requestAnimationFrame(frame); }
+  function frame(now) {
+    if (now - last > 50) { draw(now); last = now; }     // twenty frames a second is plenty
+    requestAnimationFrame(frame);
   }
 
   palette();
   resize();
   window.addEventListener("resize", resize);
-  new MutationObserver(() => { palette(); drawGrid(); draw(); })
+  new MutationObserver(() => { palette(); drawGrid(); draw(performance.now()); })
     .observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-  if (still) return;
-  window.addEventListener("mousemove", (ev) => { mouse = { x: ev.clientX, y: ev.clientY }; wake(); }, { passive: true });
-  window.addEventListener("mouseleave", () => { mouse = null; wake(); });
-  document.addEventListener("visibilitychange", () => { if (document.hidden) mouse = null; });
+  if (!still) requestAnimationFrame(frame);
 }
 
 // ------------------------------------------------------------------ helpers
