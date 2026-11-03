@@ -173,16 +173,48 @@ def _run_dir(rid: str) -> Path | None:
     return run if (run / "run.json").exists() else None
 
 
-def _walk(run: Path) -> list[Path]:
-    found = []
-    for dirpath, dirnames, filenames in os.walk(run):
-        dirnames[:] = sorted(d for d in dirnames if not d.startswith((".", "__")))
-        for name in filenames:
-            if not name.startswith("."):
-                found.append(Path(dirpath) / name)
-        if len(found) > 2000:
-            break
-    return found
+WALK_LIMIT = 2000
+# Folders that hold installed software, not results: method discovery installs the method it
+# chose into `discovery/site` (often torch and scanpy, tens of thousands of files).
+SKIP_DIR_NAMES = {"site-packages", "node_modules", "__pycache__"}
+SKIP_DIR_SUFFIXES = (".dist-info", ".egg-info")
+SKIP_REL_DIRS = {"discovery/site"}
+
+
+def _walk(run: Path) -> tuple[list[Path], bool]:
+    """The session's files, shallow folders first, without installed-software folders.
+
+    Breadth-first, so a result folder such as `plots/` is listed before anything deep; the
+    listing stops at WALK_LIMIT files, and the second value says whether it stopped early.
+    """
+    found: list[Path] = []
+    queue = [run]
+    while queue:
+        here = queue.pop(0)
+        try:
+            entries = sorted(os.scandir(here), key=lambda e: e.name)
+        except OSError:
+            continue
+        subdirs = []
+        for e in entries:
+            if e.name.startswith("."):
+                continue
+            try:
+                is_dir = e.is_dir(follow_symlinks=False)
+            except OSError:
+                continue
+            if is_dir:
+                rel = Path(e.path).relative_to(run).as_posix()
+                if (e.name.startswith("__") or e.name in SKIP_DIR_NAMES
+                        or e.name.endswith(SKIP_DIR_SUFFIXES) or rel in SKIP_REL_DIRS):
+                    continue
+                subdirs.append(Path(e.path))
+            else:
+                found.append(Path(e.path))
+                if len(found) >= WALK_LIMIT:
+                    return found, True
+        queue.extend(subdirs)
+    return found, False
 
 
 def _file_entry(run: Path, path: Path) -> dict:
@@ -371,8 +403,10 @@ async def _start(request: Request):
 
 def _detail_data(run: Path) -> dict:
     info = _status(run)
-    files = [p for p in _walk(run) if p.name not in BOOKKEEPING]
+    walked, truncated = _walk(run)
+    files = [p for p in walked if p.name not in BOOKKEEPING]
     info["usage"] = _usage(run)
+    info["files_truncated"] = truncated
     info["figures"] = [_file_entry(run, p) for p in
                        sorted((p for p in files if p.suffix.lower() in IMAGE_SUFFIXES),
                               key=lambda p: p.stat().st_mtime)]

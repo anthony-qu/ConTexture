@@ -949,7 +949,9 @@ const isResult = (p) => /\.(h5ad|h5mu)$/i.test(p) || /(^|\/)(results\.json|analy
 
 function renderFiles(view) {
   const files = view.info.files || [];
-  $("#n-files").textContent = files.length;
+  $("#n-files").textContent = files.length + (view.info.files_truncated ? "+" : "");
+  $("#n-files").title = view.info.files_truncated
+    ? `The first ${files.length} files are listed; the session folder holds more.` : "";
   const sig = files.map((f) => f.path + f.size + f.mtime).join("|");
   if (sig === view.fileSig) return;
   view.fileSig = sig;
