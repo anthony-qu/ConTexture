@@ -612,7 +612,8 @@ function openRun(id) {
   if (app.view && app.view.id === id) return;
   closeRun();
   const view = app.view = { id, total: 0, cell: 0, last: null, figSig: "", fileSig: "", discSig: "",
-                            analysisStarted: false, info: null, timer: null, clock: null, finalPass: false, group: null };
+                            analysisStarted: false, info: null, timer: null, clock: null, finalPass: false, group: null,
+                            tail: null };
   $("#timeline").innerHTML = "";
   $("#gallery").innerHTML = "";
   $("#file-rows").innerHTML = "";
@@ -661,7 +662,8 @@ async function tick(view) {
     const stage = stageOf(s.kind);
     if (view.group && view.group.key !== stage) closeGroup(view);
     if (stage && !view.group) openGroup(view, stage, timeline);
-    (view.group ? view.group.body : timeline).appendChild(node);
+    if (view.group) view.group.body.appendChild(node);
+    else timeline.insertBefore(node, view.tail || null);
     if (view.group) view.group.n += 1;
     view.last = node;
   }
@@ -859,12 +861,26 @@ function renderStageCards(view, d) {
 // When the run has ended, the main agent's own product: the opening of analysis.md.
 async function renderFinalCard(view) {
   if (view.finalCard || view.info.active) return;
-  const f = (view.info.files || []).find((x) => /(^|\/)analysis\.md$/i.test(x.path));
-  if (!f) return;
   view.finalCard = true;
-  let text;
-  try { text = await (await fetch(fileUrl(view.id, f.path))).text(); } catch (e) { return; }
+  const f = (view.info.files || []).find((x) => /(^|\/)analysis\.md$/i.test(x.path));
+  let text = null;
+  if (f) {
+    try { text = await (await fetch(fileUrl(view.id, f.path))).text(); } catch (e) { text = null; }
+  }
   if (app.view !== view) return;
+  if (text !== null) appendAnalysisCard(view, f, text);
+  renderFinishBox(view);
+}
+
+// The last row of a session that finished on its own (not one that failed or was stopped).
+function renderFinishBox(view) {
+  if (view.info.status !== "finished" || $("#timeline .k-finish")) return;
+  const box = el(`<div class="entry k-finish"><img src="/static/finish.png" alt=""><span>\u568e finish!</span></div>`);
+  $("#timeline").appendChild(box);
+  if (!view.tail) view.tail = box;
+}
+
+function appendAnalysisCard(view, f, text) {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
   const title = (lines.find((l) => /^#\s/.test(l)) || "").replace(/^#+\s*/, "");
   const bodyLines = lines.filter((l) => !/^#/.test(l) && !/^-{3,}$/.test(l)).slice(0, 6)
@@ -873,6 +889,7 @@ async function renderFinalCard(view) {
     <span class="sum-links"><a class="link" href="${fileUrl(view.id, f.path)}" target="_blank" rel="noopener">Open analysis.md</a></span></div>
     <div class="md sum-body">${bodyLines}</div></div>`);
   $("#timeline").appendChild(card);
+  view.tail = card;
 }
 
 // ------------------------------------------------------------------ the Discovery tab

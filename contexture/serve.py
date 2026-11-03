@@ -559,6 +559,7 @@ def _export(request: Request):
     # The logo and icon, wherever the page or its script names them.
     for name in ("logo.svg", "logo_dark.svg", "icon.svg"):
         page = page.replace(f"/static/{name}", _data_uri(static / name, "image/svg+xml"))
+    page = page.replace("/static/finish.png", _data_uri(static / "finish.png", "image/png"))
     title = (info["goal"].split("\n")[0][:80] or run.name).replace("<", "").replace("&", "&amp;")
     page = page.replace("<title>ConTexture</title>", f"<title>ConTexture: {title}</title>", 1)
     return HTMLResponse(page, headers={
