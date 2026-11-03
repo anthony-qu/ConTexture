@@ -363,14 +363,21 @@ table.files a { text-decoration: none; }
 }
 
 /* ------------------------------------------------------------------ method discovery */
-.options { border: 0; padding: 0; margin: 0; min-width: 0; gap: 12px; }
-.check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; font-size: 14px; line-height: 1.45; }
-.check input { width: 16px; height: 16px; margin: 3px 0 0; flex: none; accent-color: var(--accent); }
-.check b { font-weight: 600; }
-.check small { display: block; color: var(--muted); font-size: 12.5px; }
-.check input:disabled + span { opacity: 0.55; }
-.disc-extra { display: flex; flex-direction: column; gap: 12px; padding-left: 26px; }
-.disc-extra .hint { color: var(--muted); font-size: 12.5px; }
+/* the one "Self-evolving" switch in the form's top-right corner (method discovery + skill
+   evolution together; the hover text is the only explanation) */
+.form-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: -4px; }
+.form-title { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.switch { position: relative; display: inline-flex; align-items: center; gap: 9px; cursor: pointer;
+          font-size: 13px; font-weight: 500; color: var(--ink-2); user-select: none; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch .track { width: 36px; height: 20px; border-radius: 10px; background: var(--line-2); position: relative;
+                 flex: none; transition: background 0.15s; }
+.switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+                        border-radius: 50%; background: #fff; transition: transform 0.15s; }
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track::after { transform: translateX(16px); }
+.switch input:focus-visible + .track { box-shadow: 0 0 0 3px var(--accent-soft); }
+.switch input:checked ~ .switch-label { color: var(--ink); }
 .entry.k-code.pre .cell-head > span:first-child { color: var(--accent); }
 .entry.notice.stage { border-style: solid; }
 .entry.fold.stage > summary b { color: var(--ink-2); font-weight: 600; }

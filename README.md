@@ -59,9 +59,10 @@ contexture run sample.h5ad "Cluster the spots, name the spatial domains, and sav
 
 ## Method discovery and skill evolution
 
-Both are off by default. On the page they are the two switches under **Before the analysis**; in
-the terminal they are `--discovery` and `--evolve`. With them on, a run goes through these stages
-before the analysis starts, and the page's **Discovery** tab shows each one as it finishes:
+Both are off by default. On the page one switch, **Self-evolving** in the form's top-right corner,
+turns both on; in the terminal they are `--discovery` and `--evolve`, which can be used apart.
+With them on, a run goes through these stages before the analysis starts, and the page's
+**Discovery** tab shows each one as it finishes:
 
 1. **Data report.** A data reporter reads the data and writes what it finds.
 2. **Skill maker** (skill evolution only). For an assay that no skill covers, it composes a new

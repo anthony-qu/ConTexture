@@ -32,6 +32,14 @@
       <!-- New analysis: three fields, centred -->
       <section id="view-new" class="view view-new" hidden>
         <form id="new-form" class="card form" autocomplete="off">
+          <div class="form-head">
+            <span class="form-title">New analysis</span>
+            <label class="switch" title="Before the analysis: a data report, a new skill composed for an assay no skill covers, a plan, and a method found and installed when the plan needs one.">
+              <input id="f-discovery" name="discovery" type="checkbox">
+              <span class="track" aria-hidden="true"></span>
+              <span class="switch-label">Self-evolving</span>
+            </label>
+          </div>
           <label class="field">
             <span class="label">Data</span>
             <div class="pick-row">
@@ -58,31 +66,6 @@
             <input id="f-model" name="model" type="text" list="model-list" spellcheck="false">
             <datalist id="model-list"></datalist>
           </label>
-          <fieldset class="field options">
-            <span class="label">Before the analysis</span>
-            <label class="check">
-              <input id="f-discovery" name="discovery" type="checkbox">
-              <span><b>Method discovery</b><small>A data reporter describes the data, a planner writes
-                the plan, and for any step that needs a method that is not installed, a method discovery
-                agent searches the literature and GitHub, installs and tests one.</small></span>
-            </label>
-            <label class="check">
-              <input id="f-evolve" name="evolve" type="checkbox" disabled>
-              <span><b>Skill evolution</b><small>For an assay no skill covers, a skill maker composes a
-                new skill from the existing skills and the platform transformations and tests it on the
-                data. Needs method discovery.</small></span>
-            </label>
-            <div id="disc-extra" class="disc-extra" hidden>
-              <label class="field">
-                <span class="label">Model for the discovery agents</span>
-                <input id="f-dmodel" name="discovery_model" type="text" list="model-list" spellcheck="false"
-                       placeholder="same as the model above">
-                <small class="hint">The data reporter, the skill maker and the method discovery agent. The
-                  planner always uses the model above.</small>
-              </label>
-              <div id="disc-env" class="key-note"></div>
-            </div>
-          </fieldset>
           <div id="key-note" class="key-note" hidden></div>
           <div id="form-error" class="form-error" role="alert" hidden></div>
           <button id="f-start" class="btn btn-primary wide" type="submit">

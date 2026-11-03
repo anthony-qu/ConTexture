@@ -314,9 +314,10 @@ async function loadConfig(first) {
   if (!model.value || model.value === previousDefault) model.value = c.default_model;
   $("#model-list").innerHTML = c.models.map((m) => `<option value="${esc(m)}">`).join("");
   renderKeyNote();
-  if (c.discovery) {
-    $("#disc-env").textContent = c.discovery.explain || "";
-    $("#disc-env").classList.toggle("missing", !c.discovery.isolated);
+  // The toggle's hover text ends with where a discovered method will be installed.
+  if (c.discovery && c.discovery.explain) {
+    const sw = $(".switch");
+    sw.title = sw.title.split("\n")[0] + "\n" + c.discovery.explain;
   }
   $("#pick-btns").hidden = !c.can_pick;    // no screen (a remote server): type the path
   if (first && !c.keys.length) openKeys();
@@ -346,13 +347,6 @@ async function pickPath(kind) {
 }
 
 // The two switches: skill evolution runs inside method discovery, so it is offered only then.
-function syncDiscoveryForm() {
-  const on = $("#f-discovery").checked;
-  $("#f-evolve").disabled = !on;
-  if (!on) $("#f-evolve").checked = false;
-  $("#disc-extra").hidden = !on;
-}
-
 function renderKeyNote() {
   const c = app.config, has = c.keys.length > 0, note = $("#key-note");
   note.hidden = has;
@@ -681,8 +675,10 @@ $("#new-form").addEventListener("submit", async (ev) => {
       body: JSON.stringify({
         data_path: $("#f-data").value, goal: $("#f-goal").value,
         model: $("#f-model").value,
-        discovery: $("#f-discovery").checked, evolve: $("#f-evolve").checked,
-        discovery_model: $("#f-discovery").checked ? $("#f-dmodel").value.trim() : "",
+        // One switch turns method discovery and skill evolution on together; the discovery
+        // agents use the analysis model (the terminal's --discovery-model can set another).
+        discovery: $("#f-discovery").checked, evolve: $("#f-discovery").checked,
+        discovery_model: "",
       }),
     });
     $("#f-goal").value = "";
@@ -706,7 +702,6 @@ $("#r-stop").addEventListener("click", async () => {
   tick(view);
 });
 
-$("#f-discovery").addEventListener("change", syncDiscoveryForm);
 $("#r-goal").addEventListener("click", () => $("#r-goal").classList.toggle("open"));
 $("#open-keys").addEventListener("click", () => openKeys());
 $("#close-keys").addEventListener("click", () => $("#keys-dialog").close());
