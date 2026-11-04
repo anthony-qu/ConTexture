@@ -1,5 +1,5 @@
 """GitHub banner (docs/banner.png): the page's dark honeycomb background, the logo, and the one-line
-description. Rebuild with the cluster miniconda python (needs cairosvg): python docs/make_banner.py"""
+description (38 px text since 2026-11-03, was 28). Rebuild with the cluster miniconda python (needs cairosvg): python docs/make_banner.py"""
 import math, re, sys, cairosvg
 LOGO = __import__("os").path.join(__import__("os").path.dirname(__file__), "..", "contexture", "webui", "static", "logo_dark.svg")
 BG, LINE, PATCH = "#14152a", "#262857", "#7a5cd0"
@@ -32,16 +32,16 @@ def banner(layout, out, W=1800, H=380, R=26):
     P = patch([(35,1),(36,1),(37,1),(35,2),(36,2),(37,2),(36,3),(37,3),(38,2)], [.22,.3,.2,.28,.35,.26,.18,.22,.16]) + \
         patch([(2,8),(3,8),(2,9),(3,9),(4,9),(3,10)], [.18,.24,.22,.3,.18,.16])
     grid = hexes(W, H, R, P)
-    text = ("A self-evolving agentic AI system for spatial multi-omics analysis",
-            "that adapts to new, unseen assay technologies")
+    text = ("A self-evolving agentic AI system for spatial multi-omics",
+            "analysis that adapts to new, unseen assay technologies")
     if layout == "side":
         lh = 112; sc = lh / 108; lw = 615.4 * sc
-        x0 = 100; y0 = (H - lh) / 2
+        x0 = 80; y0 = (H - lh) / 2
         body = f'<g transform="translate({x0},{y0}) scale({sc})">{logo_inner()}</g>'
         tx = x0 + lw + 70
-        body += f'<line x1="{tx-35}" y1="{H/2-60}" x2="{tx-35}" y2="{H/2+60}" stroke="{LINE}" stroke-width="2"/>'
-        body += f'<text x="{tx}" y="{H/2-8}" font-family="Arial" font-size="28" fill="{TEXT1}">{text[0]}</text>'
-        body += f'<text x="{tx}" y="{H/2+34}" font-family="Arial" font-size="28" fill="{TEXT2}">{text[1]}</text>'
+        body += f'<line x1="{tx-35}" y1="{H/2-70}" x2="{tx-35}" y2="{H/2+70}" stroke="{LINE}" stroke-width="2"/>'
+        body += f'<text x="{tx}" y="{H/2-17.5}" font-family="Arial" font-size="38" fill="{TEXT1}">{text[0]}</text>'
+        body += f'<text x="{tx}" y="{H/2+36.5}" font-family="Arial" font-size="38" fill="{TEXT2}">{text[1]}</text>'
     else:  # stacked, centred
         lh = 130; sc = lh / 108; lw = 615.4 * sc
         body = f'<g transform="translate({(W-lw)/2},{70}) scale({sc})">{logo_inner()}</g>'
